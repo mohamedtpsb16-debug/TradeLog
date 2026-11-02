@@ -147,6 +147,71 @@ body.sidebar-collapsed .sidebar-footer{justify-content:center;padding:9px 4px}
 .donut-center small{font-size:10px}
 @media(max-width:900px){.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.metric-card{min-height:100px;padding:12px}.metric-card strong{font-size:21px}.donut-wrap{gap:10px}.donut{width:118px;height:118px}.donut:after{inset:25px}.result-legend{min-width:104px}}
+
+/* Consistent styling for trade forms, tables, accounts and secondary pages */
+.app-content>.tabpage>h2,.app-content>.tabpage>.section-title h2{font-size:22px;letter-spacing:-.45px}
+.app-content>.tabpage>.panel{padding:18px}
+.tablewrap{border:1px solid #eeeaf6;border-radius:13px;background:#fff}
+table{border-collapse:separate;border-spacing:0;min-width:680px}
+th{background:#f7f5fd;color:#77718f;font-size:11px;font-weight:750;letter-spacing:.25px;text-transform:uppercase;padding:12px 11px}
+th:first-child{border-top-left-radius:12px}th:last-child{border-top-right-radius:12px}
+td{padding:12px 11px;font-size:13px;color:#292645;border-bottom:1px solid #f0edf7}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:#fbfaff}
+.metric-grid .stat{margin-bottom:0}
+#trades>.panel{padding:17px}
+#trades .form{gap:13px}
+#trades .tablewrap{margin-top:17px}
+#newtrade>.panel{max-width:1000px}
+#tradeForm{gap:17px}
+#tradeForm .field{min-width:0}
+#tradeForm .field>label{font-size:12px;color:#514a70;margin-bottom:7px}
+#tradeForm input:not([type=checkbox]):not([type=file]),#tradeForm select,#tradeForm textarea{min-height:43px}
+#tradeForm input[type=file]{padding:13px;background:#faf9ff;border:1px dashed #cfc4f7}
+#tradeForm .checks{padding:12px 14px;background:#faf9ff;border:1px solid #eeeaf8;border-radius:12px}
+#tradeForm .checks label{font-size:12px;color:#55506e}
+#tradeForm .field.full>.row{justify-content:flex-start}
+#tradeForm button[type=submit]{min-width:190px}
+.account-card{padding:19px;margin:0 0 14px;transition:box-shadow .18s ease,transform .18s ease}
+.account-card:hover{box-shadow:0 8px 24px #35207812;transform:translateY(-1px)}
+.account-card>.row{align-items:flex-start}
+.account-card .account-stats>div{padding:10px 12px;background:#f8f7fd;border-radius:11px}
+.account-card .account-stats b{display:block;margin-top:4px;color:#252044}
+.account-card details summary{cursor:pointer;color:#643bee;font-size:12px;font-weight:700}
+.calendar-summary{gap:12px}
+.calendar-summary .stat{margin:0;padding:14px}
+.calendar-summary .stat strong{font-size:20px}
+.calendar-grid{gap:8px}
+.calendar-day{border-radius:12px;background:#fbfaff;border-color:#eeeaf7;transition:transform .15s ease,box-shadow .15s ease}
+.calendar-day:not(.empty):hover{transform:translateY(-2px);box-shadow:0 4px 12px #35207812}
+.calendar-day.profit{background:linear-gradient(145deg,#eaf8f1,#f7fcf9);border-color:#c8ead8}
+.calendar-day.loss{background:linear-gradient(145deg,#fff0f1,#fff9f9);border-color:#f3d4d9}
+.calendar-day.selected{outline:2px solid #643bee;outline-offset:1px}
+.week-card{background:#f8f7fd;border-color:#eeeaf7;border-radius:12px;padding:12px}
+#calendarDayTrades{margin-top:10px}
+.ai-notice{background:#f5f2ff;border-color:#e6defd;color:#5e5286;border-radius:12px}
+.ai-messages{background:#fbfaff;border:1px solid #f0edf7;border-radius:13px;padding:13px;margin-bottom:14px}
+.ai-bubble.assistant{background:#fff;border:1px solid #eeeaf7;color:#302b4e;border-radius:4px 14px 14px 14px}
+.ai-bubble.user{background:linear-gradient(120deg,#7048f2,#5931dc);color:#fff;border-radius:14px 4px 14px 14px}
+.ai-markdown h3,.ai-markdown h4,.ai-markdown h5{color:#352078}
+#backup .panel{padding:20px}
+#backup .note{border-radius:12px}
+#backup .row{justify-content:flex-start}
+#backup input[type=file]{max-width:260px}
+.status.ok{color:#138454}.status.err{color:#d34457}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #c8b8ff;outline-offset:2px}
+@media(max-width:720px){
+ .app-content>.tabpage>.panel{padding:14px}
+ .section-title{align-items:flex-start}
+ .section-title h2{font-size:19px}
+ #trades .tablewrap{margin-left:-2px;margin-right:-2px}
+ .calendar-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .calendar-grid{gap:4px}
+ .calendar-day{min-height:66px;padding:5px}
+ .account-card .account-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #tradeForm .field.full>.row{flex-wrap:wrap}
+ #tradeForm button[type=submit]{width:100%}
+}
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
