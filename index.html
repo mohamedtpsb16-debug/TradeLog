@@ -393,7 +393,8 @@ async function loadAll(){
  if(failed)throw new Error(failed.error.message);
  accounts=(ar.data||[]).map(a=>({id:a.id,name:a.account_name,broker:a.broker,capital:a.initial_capital,risk:a.risk_percent,currency:a.currency,start:a.start_date}));
  trades=tr.data||[];riskChanges=rr.data||[];
- render();renderDashboard();renderHistory();renderAnalytics();renderCalendar();
+ const renderSteps=[['comptes',render],['tableau de bord',renderDashboard],['historique',renderHistory],['analyses',renderAnalytics],['calendrier',renderCalendar]];
+ for(const [label,fn] of renderSteps){try{fn()}catch(err){console.error('TradeLog rendu '+label,err);throw new Error('Données récupérées, mais erreur d’affichage ('+label+') : '+(err?.message||String(err)))}}
 }
 function render(){
  const symbols=[...new Set(trades.map(t=>String(t.symbol||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
