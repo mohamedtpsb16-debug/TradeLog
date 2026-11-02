@@ -55,7 +55,7 @@ table{background:#fff}td,th{border-bottom:1px solid #e5e9f0}th{color:#718096;bac
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const SUPABASE_URL='https://zmktcetxtwkaguxmnjdt.supabase.co';
 const SUPABASE_KEY='sb_publishable__Smj6ecrYFvW6_xad_rCOQ_ns5SzvS7';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let user=null,accounts=[],trades=[];const $=id=>document.getElementById(id);const today=()=>new Date().toISOString().slice(0,10);const formatDate=v=>{const s=String(v||'').slice(0,10);const m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s};const money=n=>(Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let user=null,accounts=[],trades=[];const $=id=>document.getElementById(id);const today=()=>new Date().toISOString().slice(0,10);const formatDate=v=>{const s=String(v||'').slice(0,10);const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s};const money=n=>(Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function msg(id,s,cls=''){ $(id).textContent=s;$(id).className='status '+cls }
 function showApp(on){$('auth').classList.toggle('hidden',on);$('app').classList.toggle('hidden',!on)}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();msg('authMsg','Connexion…');const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){msg('authMsg',error.message,'err');return}user=data.user;await boot()});
