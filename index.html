@@ -398,7 +398,6 @@ async function loadAll(){
 function render(){
  const symbols=[...new Set(trades.map(t=>String(t.symbol||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
  $('assetOptions').innerHTML=symbols.map(x=>'<option value="'+esc(x)+'"></option>').join('');
- $('analyticsSymbol').innerHTML='<option value="all">Tous les instruments</option>'+symbols.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
  const opts=accounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join('');
  $('tAccount').innerHTML=opts||'<option value="">Ajoute un compte avant un trade</option>';
  ['filterAccount','dashAccount','calendarAccount','analyticsAccount'].forEach(id=>{const el=$(id),old=el.value;el.innerHTML='<option value="all">Tous les comptes</option>'+accounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join('');el.value=accounts.some(a=>a.id===old)?old:'all'});
