@@ -168,7 +168,7 @@ function openNewTrade(){editingTradeId=null;switchTab('newtrade');$('tradeForm')
 
 async function boot(){showApp(true);$('welcome').textContent='Bienvenue dans ton espace TradeLog';msg('syncStatus','Synchronisation cloud en cours…');await loadAll();msg('syncStatus','Synchronisé avec Supabase','ok')}
 let riskChanges=[];
-async function loadAll(){let [ar,tr,rr]=await Promise.all([sb.from('trading_accounts').select('*').order('created_at'),sb.from('trades').select('*').order('trade_date',{ascending:false}),sb.from('risk_changes').select('*').order('effective_at',{ascending:true})]);if(ar.error||tr.error||rr.error){msg('syncStatus',(ar.error||tr.error||rr.error).message,'err');return}accounts=(ar.data||[]).map(a=>({id:a.id,name:a.account_name,broker:a.broker,capital:a.initial_capital,risk:a.risk_percent,currency:a.currency,start:a.start_date}));trades=tr.data||[];riskChanges=rr.data||[];render();renderDashboard();renderHistory();renderAnalytics();renderCalendar()}
+async function loadAll(){let [ar,tr,rr]=await Promise.all([sb.from('trading_accounts').select('*').order('created_at'),sb.from('trades').select('*').order('created_at',{ascending:false}),sb.from('risk_changes').select('*').order('effective_at',{ascending:true})]);if(ar.error||tr.error||rr.error){msg('syncStatus',(ar.error||tr.error||rr.error).message,'err');return}accounts=(ar.data||[]).map(a=>({id:a.id,name:a.account_name,broker:a.broker,capital:a.initial_capital,risk:a.risk_percent,currency:a.currency,start:a.start_date}));trades=tr.data||[];riskChanges=rr.data||[];render();renderDashboard();renderHistory();renderAnalytics();renderCalendar()}
 function render(){
  const symbols=[...new Set(trades.map(t=>String(t.symbol||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
  $('assetOptions').innerHTML=symbols.map(x=>'<option value="'+esc(x)+'"></option>').join('');
@@ -357,7 +357,7 @@ function renderAnalytics(){
 $('accountList').addEventListener('click',e=>{const b=e.target.closest('[data-risk]');if(!b)return;const a=accounts.find(x=>x.id===b.dataset.risk);if(!a)return;$('riskAccountId').value=a.id;$('rCapital').value=a.capital;$('rPercent').value=a.risk;$('rDate').value=today();$('rNote').value='';$('riskModal').classList.remove('hidden');$('riskModal').scrollIntoView({behavior:'smooth',block:'center'})});
 $('cancelRisk').onclick=()=>$('riskModal').classList.add('hidden');
 $('riskForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('riskAccountId').value,a=accounts.find(x=>x.id===id);if(!a)return;const date=$('rDate').value,capital=Number($('rCapital').value),risk=Number($('rPercent').value);const {error}=await sb.from('risk_changes').insert({account_id:id,effective_at:date+'T00:00:00Z',initial_capital:capital,risk_percent:risk,note:$('rNote').value||'Changement des paramètres'});if(error){alert('Historique non enregistré : '+error.message);return}const {error:upErr}=await sb.from('trading_accounts').update({initial_capital:capital,risk_percent:risk}).eq('id',id);if(upErr){alert('Historique enregistré, mais mise à jour du compte impossible : '+upErr.message);return}$('riskModal').classList.add('hidden');await loadAll();alert('Changement enregistré. Les trades antérieurs conservent leur risque de référence.')});
-$('tradeRows').addEventListener('click',async e=>{
+document.addEventListener('click',async e=>{
  const removeFile=e.target.closest('[data-remove-file]');
  if(removeFile){
   const t=trades.find(x=>x.id===removeFile.dataset.removeFile),idx=Number(removeFile.dataset.fileIndex);
