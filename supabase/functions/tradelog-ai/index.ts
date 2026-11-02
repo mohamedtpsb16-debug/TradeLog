@@ -35,7 +35,11 @@ RÈGLES D'ANALYSE :
 4. Pour analyser un trade, examine contexte/structure, liquidité, zone, confirmation, entrée, SL, TP/RR, gestion et résultat.
 5. Pour un historique, calcule les statistiques uniquement à partir des données transmises. Signale les échantillons trop petits.
 6. Distingue « conforme au référentiel SMC 2025 » de « conforme au plan personnel de l'utilisateur ».
-7. Termine par un verdict nuancé : conforme, partiellement conforme, non conforme ou impossible à déterminer, avec raisons précises.`;
+7. Termine par un verdict nuancé : conforme, partiellement conforme, non conforme ou impossible à déterminer, avec raisons précises.
+8. FORMAT OBLIGATOIRE : réponds en Markdown simple, jamais en HTML, jamais avec des balises <strong>, <p> ou autres.
+9. Si le trade provient uniquement de MT5 et qu'une capture est jointe, fais une analyse graphique uniquement des éléments réellement visibles sur cette capture. Si l'image ne permet pas de lire les UT, prix ou séquence, indique-le explicitement.
+10. Pour une analyse individuelle, utilise exactement ces rubriques courtes : « Données du trade », « Analyse graphique SMC », « Gestion et résultat », « Informations manquantes », « Verdict ». Ne t'arrête pas après le titre d'une rubrique. Si une rubrique ne peut pas être évaluée, écris pourquoi en une phrase.
+11. Reste concis mais complet : environ 250 à 400 mots maximum. N'annonce jamais une analyse complète si des critères essentiels ne sont pas vérifiables.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -78,7 +82,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: "user", parts }],
-        generationConfig: { temperature: 0.25, maxOutputTokens: 1100 },
+        generationConfig: { temperature: 0.25, maxOutputTokens: 1600 },
       }),
       });
     } catch (fetchError) {
@@ -94,9 +98,22 @@ Deno.serve(async (req) => {
       const detail = result?.error?.message || "Erreur du service Gemini.";
       return new Response(JSON.stringify({ error: detail }), { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const answer = result?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n").trim();
-    if (!answer) throw new Error("Gemini n'a pas retourné de réponse exploitable.");
-    return new Response(JSON.stringify({ answer }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const candidate = result?.candidates?.[0];
+    const answer = candidate?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n").trim();
+    const finishReason = candidate?.finishReason || "UNKNOWN";
+    if (!answer) {
+      const blockReason = result?.promptFeedback?.blockReason;
+      throw new Error(blockReason ? "La demande a été bloquée par le filtre de sécurité Gemini (" + blockReason + ")." : "Gemini n'a pas retourné de réponse exploitable.");
+    }
+    if (finishReason !== "STOP") {
+      return new Response(JSON.stringify({
+        error: "Réponse Gemini incomplète (motif : " + finishReason + "). Relance l'analyse avec une demande plus courte ou une capture plus lisible.",
+        answer,
+        incomplete: true,
+        finishReason
+      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ answer, incomplete: false, finishReason }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inattendue." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
