@@ -379,9 +379,22 @@ $('aiSend').addEventListener('click',async()=>{
 
 function openNewTrade(){editingTradeId=null;switchTab('newtrade');$('tradeForm').reset();$('tDate').value=today();$('tFiles').value='';$('tradePageTitle').textContent='Enregistrer un trade';$('tGross').value='';$('tCommission').value='0';$('tSwap').value='0';$('tFees').value='0';$('tAccount').value=accounts[0]?.id||'';$('cancelTradeEdit').classList.add('hidden')}
 
-async function boot(){showApp(true);$('welcome').textContent='Bienvenue dans ton espace TradeLog';msg('syncStatus','Synchronisation cloud en cours…');await loadAll();msg('syncStatus','Synchronisé avec Supabase','ok')}
+async function boot(){showApp(true);$('welcome').textContent='Bienvenue dans ton espace TradeLog';msg('syncStatus','Synchronisation cloud en cours…');try{await loadAll();msg('syncStatus','Synchronisation terminée · '+accounts.length+' compte(s), '+trades.length+' trade(s)','ok')}catch(err){msg('syncStatus','Échec de synchronisation : '+(err?.message||String(err)),'err')}}
 let riskChanges=[];
-async function loadAll(){let [ar,tr,rr]=await Promise.all([sb.from('trading_accounts').select('*').order('created_at'),sb.from('trades').select('*').order('created_at',{ascending:false}),sb.from('risk_changes').select('*').order('effective_at',{ascending:true})]);if(ar.error||tr.error||rr.error){msg('syncStatus',(ar.error||tr.error||rr.error).message,'err');return}accounts=(ar.data||[]).map(a=>({id:a.id,name:a.account_name,broker:a.broker,capital:a.initial_capital,risk:a.risk_percent,currency:a.currency,start:a.start_date}));trades=tr.data||[];riskChanges=rr.data||[];render();renderDashboard();renderHistory();renderAnalytics();renderCalendar()}
+async function loadAll(){
+ const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Le serveur ne répond pas après 20 secondes. Vérifie ta connexion puis réessaie.')),20000));
+ const requests=Promise.all([
+  sb.from('trading_accounts').select('*').order('created_at'),
+  sb.from('trades').select('*').order('created_at',{ascending:false}),
+  sb.from('risk_changes').select('*').order('effective_at',{ascending:true})
+ ]);
+ const [ar,tr,rr]=await Promise.race([requests,timeout]);
+ const failed=[ar,tr,rr].find(x=>x.error);
+ if(failed)throw new Error(failed.error.message);
+ accounts=(ar.data||[]).map(a=>({id:a.id,name:a.account_name,broker:a.broker,capital:a.initial_capital,risk:a.risk_percent,currency:a.currency,start:a.start_date}));
+ trades=tr.data||[];riskChanges=rr.data||[];
+ render();renderDashboard();renderHistory();renderAnalytics();renderCalendar();
+}
 function render(){
  const symbols=[...new Set(trades.map(t=>String(t.symbol||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
  $('assetOptions').innerHTML=symbols.map(x=>'<option value="'+esc(x)+'"></option>').join('');
