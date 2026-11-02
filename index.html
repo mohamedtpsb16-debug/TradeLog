@@ -52,11 +52,81 @@ table{background:#fff}td,th{border-bottom:1px solid #e5e9f0}th{color:#718096;bac
 .trade-file-actions{display:flex;align-items:center;gap:12px;font-size:13px}
 .trade-file-actions a{color:#34445b;font-weight:650}
 .trade-file-actions button{border:0;background:#fff0f0;color:#c44c52;border-radius:7px;padding:7px 9px;font-weight:650;cursor:pointer}
+
+/* TradeLog UX refresh — light analytical system */
+:root{--bg:#f7f6fc;--card:#fff;--ink:#17153b;--muted:#77758f;--line:#e9e6f2;--green:#16a66a;--red:#e64b5d;--primary:#643bee;--primary-dark:#352078;--lavender:#f0eefa;--lavender-strong:#eae5ff}
+body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+body.app-authenticated .auth-brand{display:none}
+#app{max-width:none;width:100%;margin:0;padding:0}
+.app-shell{display:flex;min-height:100vh;width:100%;align-items:stretch}
+.sidebar{width:258px;flex:0 0 258px;min-height:100vh;background:linear-gradient(180deg,#24145c 0%,#352078 65%,#4a2ca0 100%);color:#fff;padding:22px 15px;display:flex;flex-direction:column;gap:25px;transition:width .22s ease,flex-basis .22s ease;z-index:40}
+.sidebar-brand{display:flex;align-items:center;gap:11px;padding:2px 8px 14px}
+.sidebar-brand strong{display:block;font-size:21px;letter-spacing:-.5px}
+.sidebar-brand small,.sidebar-footer small{display:block;color:#d5cafa;font-size:11px}
+.sidebar-logo{width:39px;height:39px;border-radius:13px;background:linear-gradient(135deg,#a68cff,#643bee);display:grid;place-items:center;font-weight:900;color:#fff;box-shadow:0 5px 16px #140b3d66}
+.sidebar-nav{display:flex;flex-direction:column;gap:6px;overflow:visible;margin:0;padding:0}
+.sidebar-nav button{display:flex;align-items:center;gap:13px;width:100%;min-height:44px;padding:10px 12px;border:1px solid transparent;border-radius:12px;background:transparent;color:#e8e1ff;text-align:left;white-space:nowrap;font-weight:600;transition:background .18s ease,color .18s ease}
+.sidebar-nav button:hover{background:#ffffff16;color:#fff}
+.sidebar-nav button.active{background:linear-gradient(110deg,#7650f5,#643bee);color:#fff;box-shadow:0 5px 16px #1a0c5366}
+.nav-icon{width:22px;flex:0 0 22px;text-align:center;font-size:19px}
+.sidebar-footer{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 9px;border:1px solid #ffffff26;border-radius:14px;background:#ffffff10}
+.profile-avatar{width:35px;height:35px;border-radius:50%;background:#c8b8ff;color:#352078;display:grid;place-items:center;font-weight:800}
+.profile-label b{display:block;font-size:12px}
+.app-main{min-width:0;flex:1;display:flex;flex-direction:column}
+.app-topbar{min-height:76px;padding:14px 26px;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#ffffffd9;border-bottom:1px solid var(--line);backdrop-filter:blur(12px);position:sticky;top:0;z-index:25}
+.topbar-left,.topbar-actions{display:flex;align-items:center;gap:12px}
+.topbar-left #welcome{font-size:16px;color:var(--ink)}
+.topbar-left .status{font-size:11px;margin-top:2px}
+.icon-button{width:38px;height:38px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--primary-dark);font-size:20px;cursor:pointer;display:grid;place-items:center}
+.mobile-menu-button{display:none}
+.app-content{width:100%;max-width:1600px;margin:0 auto;padding:24px 26px 36px;min-width:0;flex:1}
+body.app-authenticated .foot{padding:10px 24px 18px;margin:0;color:#9994ad}
+.btn{background:var(--primary);color:#fff;border-radius:10px;box-shadow:0 3px 9px #643bee18}
+.btn:hover{filter:brightness(1.04)}
+.btn.gold,.btn.primary-action{background:linear-gradient(110deg,#7048f2,#5931dc);color:#fff}
+.btn.light{background:#f1effa;color:#4b3a82;border:1px solid #e8e3f7;box-shadow:none}
+.btn.red{background:#fff0f1;color:var(--red)}
+.panel,.stat,.chart-box,.account-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 3px 14px #3520780a}
+.stat strong{color:var(--ink)}
+.section-title h2,.panel h2,.panel h3,.chart-box h3{color:var(--ink)}
+input,select,textarea{border-color:#e3dfef;border-radius:11px}
+input:focus,select:focus,textarea:focus{outline:2px solid #cfc2ff;border-color:var(--primary)}
+.tabs button.active{background:var(--primary);color:#fff}
+.good{color:var(--green)!important}.bad{color:var(--red)!important}
+.note{background:#f6f2ff;border-color:#e5dcff;color:#4b3a82}
+.calendar-day.selected{outline-color:var(--primary);background:#f3efff}
+.calendar-day.profit{background:#eaf8f1;border-color:#c7edda}
+.calendar-day.loss{background:#fff0f1;border-color:#f5d2d7}
+.trade-actions>summary{color:var(--primary);border-color:#e6e0f5}
+.trade-action-menu{border-color:#e6e0f5;box-shadow:0 12px 32px #24145c24}
+.trade-pagination .btn{background:var(--primary)}
+.drawer-scrim{display:none}
+body.sidebar-collapsed .sidebar{width:78px;flex-basis:78px;padding-left:11px;padding-right:11px}
+body.sidebar-collapsed .sidebar-brand{justify-content:center;padding-left:0;padding-right:0}
+body.sidebar-collapsed .sidebar-brand>div:last-child,body.sidebar-collapsed .sidebar-nav button span:last-child,body.sidebar-collapsed .profile-label{display:none}
+body.sidebar-collapsed .sidebar-nav button{justify-content:center;padding-left:8px;padding-right:8px}
+body.sidebar-collapsed .sidebar-footer{justify-content:center;padding:9px 4px}
+@media(max-width:900px){.sidebar{width:220px;flex-basis:220px}.app-content{padding:20px 18px}}
+@media(max-width:720px){
+ .app-shell{min-height:100dvh}
+ .sidebar{position:fixed;left:0;top:0;bottom:0;width:min(82vw,300px);min-height:100dvh;transform:translateX(-105%);transition:transform .24s ease;box-shadow:12px 0 35px #1d104c30;padding-top:max(22px,env(safe-area-inset-top))}
+ body.drawer-open .sidebar{transform:translateX(0)}
+ .drawer-scrim{position:fixed;inset:0;background:#17102d66;z-index:35;display:block;opacity:0;visibility:hidden;transition:opacity .2s ease,visibility .2s ease}
+ body.drawer-open .drawer-scrim{opacity:1;visibility:visible}
+ .mobile-menu-button{display:grid}
+ .desktop-collapse-button{display:none}
+ .app-topbar{min-height:66px;padding:10px 13px;position:sticky;top:0}
+ .topbar-left{gap:9px}.topbar-left #welcome{font-size:14px}
+ .topbar-actions{gap:6px}.topbar-actions .btn{padding:9px 10px;font-size:12px}
+ .app-content{padding:15px 12px 28px}
+ body.sidebar-collapsed .sidebar{width:min(82vw,300px);flex-basis:auto}
+}
+@media(min-width:721px){.drawer-scrim{display:none!important}}
 </style></head><body>
-<header class="top"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div><button id="dashboardNewTrade" class="btn gold" type="button" onclick="openNewTrade()">＋ Nouveau trade</button></div></header>
+<header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
 <section id="auth" class="panel auth"><h2>Connexion à TradeLog</h2><p class="muted tiny">Connecte-toi avec l'adresse e-mail et le mot de passe créés dans Supabase.</p><form id="loginForm" class="form" onsubmit="if(!window.__tradelogLoginReady){document.getElementById('authMsg').textContent='Le module de connexion ne s’est pas chargé. Ferme TradeLog, ouvre-le dans Safari et actualise la page.';return false;}return false;"><div class="field full"><label>Adresse e-mail</label><input id="email" type="email" autocomplete="username" required></div><div class="field full"><label>Mot de passe</label><input id="password" type="password" autocomplete="current-password" required></div><div class="field full"><button class="btn" type="submit">Se connecter</button></div></form><p id="authMsg" class="status"></p><button id="resetBtn" class="btn light">Mot de passe oublié ?</button></section>
-<section id="app" class="hidden"><div class="row" style="margin-bottom:12px"><div><b id="welcome">Mon espace</b><div class="status" id="syncStatus">Synchronisation cloud</div></div><button class="btn light" id="logout">Déconnexion</button></div><nav class="tabs"><button class="active" data-tab="dashboard">Tableau de bord</button><button data-tab="trades">Mes trades</button><button data-tab="accounts">Comptes & risques</button><button data-tab="analytics">Analyses</button><button data-tab="calendar">Calendrier</button><button data-tab="backup">Sauvegarde</button><button data-tab="assistant">Assistant IA</button></nav>
+<section id="app" class="hidden"><div class="app-shell"><aside class="sidebar" id="appSidebar"><div class="sidebar-brand"><div class="sidebar-logo">TL</div><div><strong>TradeLog</strong><small>Journal de trading</small></div></div><nav class="tabs sidebar-nav" aria-label="Navigation principale"><button class="active" data-tab="dashboard"><span class="nav-icon">⌂</span><span>Tableau de bord</span></button><button data-tab="trades"><span class="nav-icon">▤</span><span>Mes trades</span></button><button data-tab="accounts"><span class="nav-icon">▱</span><span>Comptes & risques</span></button><button data-tab="analytics"><span class="nav-icon">▥</span><span>Analyses</span></button><button data-tab="calendar"><span class="nav-icon">▦</span><span>Calendrier</span></button><button data-tab="backup"><span class="nav-icon">⇧</span><span>Sauvegarde</span></button><button data-tab="assistant"><span class="nav-icon">✧</span><span>Assistant IA</span></button></nav><div class="sidebar-footer"><span class="profile-avatar">TL</span><div class="profile-label"><b>Mon espace</b><small>Journal personnel</small></div></div></aside><div class="drawer-scrim" id="drawerScrim"></div><div class="app-main"><header class="app-topbar"><div class="topbar-left"><button class="icon-button mobile-menu-button" id="mobileMenuToggle" type="button" aria-label="Ouvrir le menu">☰</button><button class="icon-button desktop-collapse-button" id="sidebarToggle" type="button" aria-label="Réduire la navigation">☷</button><div><b id="welcome">Mon espace</b><div class="status" id="syncStatus">Synchronisation cloud</div></div></div><div class="topbar-actions"><button id="dashboardNewTrade" class="btn primary-action" type="button" onclick="openNewTrade()">＋ Nouveau trade</button><button class="btn light" id="logout">Déconnexion</button></div></header><main class="app-content">
 <section id="dashboard" class="tabpage">
 <div class="section-title"><h2>Tableau de bord</h2><select id="dashAccount" style="max-width:220px" onchange="renderDashboard()"><option value="all">Tous les comptes</option></select></div>
 <div class="metric-grid" id="metrics"></div><div class="chart-grid" style="margin:14px 0"><div class="chart-box"><h3>Évolution du PNL cumulé</h3><div id="pnlChart"></div></div><div class="chart-box"><h3>Répartition des résultats</h3><div id="resultChart"></div></div></div>
@@ -90,13 +160,13 @@ table{background:#fff}td,th{border-bottom:1px solid #e5e9f0}th{color:#718096;bac
  </div>
 </section>
 <div id="riskModal" class="panel hidden"><h3>Enregistrer un changement de risque</h3><form id="riskForm" class="form"><input id="riskAccountId" type="hidden"><div class="field"><label>Date d’effet</label><input id="rDate" type="date" required></div><div class="field"><label>Nouveau capital de référence</label><input id="rCapital" type="number" min="0.01" step="0.01" required></div><div class="field"><label>Nouveau risque (%)</label><input id="rPercent" type="number" min="0.01" max="100" step="0.01" required></div><div class="field full"><label>Note (facultatif)</label><input id="rNote"></div><div class="field full"><button class="btn" type="submit">Enregistrer le changement</button><button class="btn light" type="button" id="cancelRisk">Annuler</button></div></form></div>
-</section><div class="foot">TRADELOG · Journal personnel de trading</div></main>
+</main><div class="foot">TRADELOG · Journal personnel de trading</div></div></div></section></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const SUPABASE_URL='https://zmktcetxtwkaguxmnjdt.supabase.co';
 const SUPABASE_KEY='sb_publishable__Smj6ecrYFvW6_xad_rCOQ_ns5SzvS7';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'tradelog-auth-v1'}});let user=null,accounts=[],trades=[];let calendarCursor=new Date();calendarCursor.setDate(1);let selectedCalendarDay='';const $=id=>document.getElementById(id);const today=()=>new Date().toISOString().slice(0,10);selectedCalendarDay=today();const formatDate=v=>{const s=String(v||'').slice(0,10);const m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s};const money=n=>(Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function msg(id,s,cls=''){ $(id).textContent=s;$(id).className='status '+cls }
-function showApp(on){$('auth').classList.toggle('hidden',on);$('app').classList.toggle('hidden',!on)}
+function showApp(on){$('auth').classList.toggle('hidden',on);$('app').classList.toggle('hidden',!on);document.body.classList.toggle('app-authenticated',on);if(!on)document.body.classList.remove('drawer-open','sidebar-collapsed')}
 $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const form=$('loginForm'),button=form.querySelector('button[type="submit"]');
@@ -120,9 +190,13 @@ $('loginForm').addEventListener('submit',async e=>{
 window.__tradelogLoginReady=true;
 $('resetBtn').onclick=async()=>{const email=$('email').value.trim();if(!email){msg('authMsg','Saisis ton e-mail avant de demander la réinitialisation.','err');return}const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});msg('authMsg',error?error.message:'Lien de réinitialisation envoyé si cette adresse existe.',error?'err':'ok')};
 $('logout').onclick=async()=>{await sb.auth.signOut();user=null;showApp(false)};
-function switchTab(id){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));document.querySelectorAll('.tabpage').forEach(x=>x.classList.toggle('hidden',x.id!==id));$('dashboardNewTrade').classList.toggle('hidden',id!=='dashboard')}
+function switchTab(id){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));document.querySelectorAll('.tabpage').forEach(x=>x.classList.toggle('hidden',x.id!==id));$('dashboardNewTrade').classList.toggle('hidden',id!=='dashboard');document.body.classList.remove('drawer-open');const active=document.querySelector('.sidebar-nav [data-tab="'+id+'"]');if(active){const label=active.querySelector('span:last-child');if(label)$('welcome').textContent=label.textContent.trim()}}
 
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{switchTab(b.dataset.tab);if(b.dataset.tab==='assistant')renderAITradeOptions()});
+$('sidebarToggle').addEventListener('click',()=>document.body.classList.toggle('sidebar-collapsed'));
+$('mobileMenuToggle').addEventListener('click',()=>document.body.classList.toggle('drawer-open'));
+$('drawerScrim').addEventListener('click',()=>document.body.classList.remove('drawer-open'));
+
 let aiMessages=[];
 function renderAITradeOptions(){const el=$('aiTrade');if(!el)return;const old=el.value;el.innerHTML='<option value="">Aucun trade sélectionné</option>'+trades.slice(0,100).map(t=>'<option value="'+esc(t.id)+'">'+esc(formatDate(t.trade_date)+' · '+(t.symbol||'')+' · '+(t.result==='PARTIAL'?'CP':t.result||'')+' · '+Number(t.rr||0).toFixed(2)+'R')+'</option>').join('');el.value=old}
 function renderAIMarkdown(raw){
