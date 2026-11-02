@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     const message = String(body.message || "").trim();
     if (!message) return new Response(JSON.stringify({ error: "Écris une question ou une demande d'analyse." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const context = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "";
-    const parts: Array<Record<string, unknown>> = [{ text: SYSTEM + "\n\nCONTEXTE TRADELOG (données fournies par l'utilisateur) :\n" + context + "\n\nDEMANDE :\n" + message }];
+    const parts: Array<Record<string, unknown>> = [{ text: "CONTEXTE TRADELOG (données fournies par l'utilisateur) :\n" + context + "\n\nDEMANDE :\n" + message }];
     if (body.image?.data && body.image?.mimeType) {
       const allowed = ["image/png", "image/jpeg", "image/webp"];
       if (!allowed.includes(body.image.mimeType) || String(body.image.data).length > 12000000) {
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: "user", parts }],
-        generationConfig: { temperature: 0.25, maxOutputTokens: 1800 },
+        generationConfig: { temperature: 0.25, maxOutputTokens: 1100 },
       }),
       });
     } catch (fetchError) {
