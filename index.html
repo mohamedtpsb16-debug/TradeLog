@@ -212,6 +212,11 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #c8
  #tradeForm .field.full>.row{flex-wrap:wrap}
  #tradeForm button[type=submit]{width:100%}
 }
+
+body.app-authenticated .wrap{max-width:none;width:100%;margin:0;padding:0}
+body.app-authenticated .auth-brand{display:none}
+.sidebar{position:sticky;top:0;height:100vh;align-self:flex-start;overflow-y:auto}
+@media(max-width:720px){.sidebar{position:fixed;height:100dvh;align-self:auto}}
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
