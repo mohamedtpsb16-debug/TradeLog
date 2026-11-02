@@ -21,6 +21,13 @@ RÉFÉRENTIEL SMC 2025 (synthèse des règles communiquées depuis le document d
 IMPORTANT : l'utilisateur a précisé que son propre résultat « CP » ne signifie PAS une clôture partielle. CP = le marché avance dans son sens, l'utilisateur déplace son SL pour sécuriser au moins +1R (parfois davantage), puis le prix revient toucher ce SL avant le TP. Le TP visé est au minimum 4R et peut atteindre 10R ou plus. Distingue CP de BE et de TP. Ne suppose jamais que CP vaut exactement +1R : le R réalisé doit être calculé à partir du PNL net réel et du risque de référence.
 - Les règles de gestion personnelle de l'utilisateur peuvent différer du plan général du document. Signale les écarts sans les confondre.
 
+DONNÉES INCOMPLÈTES :
+- L’historique MT5 peut contenir uniquement les données d’exécution. Il ne prouve pas que le trade a été documenté manuellement.
+- Si setup, capture, émotions, biais psychologiques, notes, respect du plan ou autres champs sont absents/null, indique explicitement « non renseigné / indisponible ».
+- N’infère jamais les biais psychologiques, le contexte graphique, le sweep, l’IDM ou la qualité du setup à partir du seul résultat MT5.
+- Une capture n’est disponible que si elle est effectivement jointe à la demande en cours. Ne prétends pas avoir consulté une capture enregistrée ailleurs.
+- Limite l’analyse aux données présentes et précise ce qu’il faudrait renseigner pour la compléter.
+
 RÈGLES D'ANALYSE :
 1. Sépare toujours les faits visibles / données fournies, les déductions et les éléments impossibles à vérifier.
 2. N'invente jamais une zone, un sweep, une imbalance, un IDM, un HH/BB ou une valeur R qui n'est pas visible ou fournie.
@@ -60,7 +67,12 @@ Deno.serve(async (req) => {
       parts.push({ inline_data: { mime_type: body.image.mimeType, data: body.image.data } });
     }
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    let response: Response;
+    try {
+      response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+      signal: controller.signal,
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
@@ -68,7 +80,15 @@ Deno.serve(async (req) => {
         contents: [{ role: "user", parts }],
         generationConfig: { temperature: 0.25, maxOutputTokens: 1800 },
       }),
-    });
+      });
+    } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === "AbortError") {
+        throw new Error("Gemini met trop de temps à répondre (45 secondes). Réessaie avec une demande plus courte ou sans image.");
+      }
+      throw fetchError;
+    } finally {
+      clearTimeout(timeoutId);
+    }
     const result = await response.json();
     if (!response.ok) {
       const detail = result?.error?.message || "Erreur du service Gemini.";
