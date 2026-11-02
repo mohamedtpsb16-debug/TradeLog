@@ -330,4 +330,15 @@ sb.auth.getSession().then(async({data,error})=>{
  if(error){showApp(false);msg('authMsg','Impossible de restaurer la session : '+error.message,'err');return}
  if(data.session){user=data.session.user;await boot()}else showApp(false)
 }).catch(err=>{showApp(false);msg('authMsg','Erreur de session : '+(err?.message||String(err)),'err')});setInterval(()=>{if(user&&!document.hidden)loadAll()},30000);$('aDate').value=today();$('tDate').value=today();
-</script></body></html>
+</script>
+<script>
+// Enregistre explicitement le service worker et vérifie sa version à chaque ouverture.
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
+      .then(registration=>registration.update())
+      .catch(error=>console.warn('Mise à jour TradeLog indisponible :',error));
+  });
+}
+</script>
+</body></html>
