@@ -75,7 +75,26 @@ const SUPABASE_KEY='sb_publishable__Smj6ecrYFvW6_xad_rCOQ_ns5SzvS7';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);let user=null,accounts=[],trades=[];let calendarCursor=new Date();calendarCursor.setDate(1);let selectedCalendarDay='';const $=id=>document.getElementById(id);const today=()=>new Date().toISOString().slice(0,10);selectedCalendarDay=today();const formatDate=v=>{const s=String(v||'').slice(0,10);const m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:s};const money=n=>(Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function msg(id,s,cls=''){ $(id).textContent=s;$(id).className='status '+cls }
 function showApp(on){$('auth').classList.toggle('hidden',on);$('app').classList.toggle('hidden',!on)}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();msg('authMsg','Connexion…');const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){msg('authMsg',error.message,'err');return}user=data.user;await boot()});
+$('loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const form=$('loginForm'),button=form.querySelector('button[type="submit"]');
+ const email=$('email').value.trim(),password=$('password').value;
+ if(!email||!password){msg('authMsg','Renseigne ton adresse e-mail et ton mot de passe.','err');return}
+ button.disabled=true;button.textContent='Connexion…';msg('authMsg','Connexion sécurisée à TradeLog…');
+ try{
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){msg('authMsg','Connexion refusée : '+error.message,'err');return}
+  if(!data?.session||!data?.user){msg('authMsg','Supabase n’a pas confirmé la session. Ferme puis rouvre TradeLog et réessaie.','err');return}
+  user=data.user;
+  msg('authMsg','Connexion réussie. Chargement de tes données…','ok');
+  await boot();
+ }catch(err){
+  const detail=err?.message||String(err);
+  msg('authMsg','Erreur technique sur cette installation : '+detail+'. Vérifie la connexion Internet de l’iPhone, puis réessaie.','err');
+ }finally{
+  button.disabled=false;button.textContent='Se connecter';
+ }
+});
 $('resetBtn').onclick=async()=>{const email=$('email').value.trim();if(!email){msg('authMsg','Saisis ton e-mail avant de demander la réinitialisation.','err');return}const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});msg('authMsg',error?error.message:'Lien de réinitialisation envoyé si cette adresse existe.',error?'err':'ok')};
 $('logout').onclick=async()=>{await sb.auth.signOut();user=null;showApp(false)};
 function switchTab(id){document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));document.querySelectorAll('.tabpage').forEach(x=>x.classList.toggle('hidden',x.id!==id));$('dashboardNewTrade').classList.toggle('hidden',id!=='dashboard')}
