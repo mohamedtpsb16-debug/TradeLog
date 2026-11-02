@@ -261,6 +261,50 @@ tbody tr:hover td{background:#fbfaff}
  .field input:not([type=checkbox]),.field select,.field textarea{font-size:16px}
 }
 
+
+/* Mobile layout pass: compact header, readable dashboard and safe overflow */
+@media(max-width:720px){
+ .app-topbar{
+  display:grid;grid-template-columns:minmax(0,1fr);gap:12px;
+  min-height:0;padding:12px 14px 14px;align-items:stretch
+ }
+ .topbar-left{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:10px;min-width:0}
+ .topbar-left>div{min-width:0}
+ .topbar-left #welcome{display:block;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+ .topbar-left .status{font-size:11px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;margin-top:4px;max-width:100%}
+ .topbar-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;width:100%}
+ .topbar-actions .btn{width:100%;min-width:0;min-height:42px;padding:10px 9px;font-size:13px;white-space:normal;line-height:1.2}
+ .app-content{padding:17px 13px 26px;overflow-x:hidden}
+ .app-content>.tabpage>.section-title{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:stretch}
+ .app-content>.tabpage>.section-title h2{font-size:21px;line-height:1.25}
+ .app-content>.tabpage>.section-title select{width:100%!important;max-width:none!important;min-height:44px}
+ .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .metric-card{min-width:0;min-height:94px;padding:11px}
+ .metric-card strong{font-size:20px;overflow-wrap:anywhere}
+ .chart-grid,.analytics-chart-grid{grid-template-columns:minmax(0,1fr)!important;gap:12px}
+ .chart-box{min-width:0;padding:14px}
+ .chart-box h3{font-size:14px}
+ .chart-svg{max-width:100%;height:auto}
+ .donut-wrap{flex-wrap:wrap;justify-content:flex-start;gap:12px;min-height:0}
+ .result-legend{min-width:0;flex:1}
+ .panel{min-width:0}
+ .tablewrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+ .tablewrap table{min-width:720px}
+ .account-card>.row{flex-direction:column;gap:10px}
+ .account-card>.row>.row{width:100%;flex-wrap:wrap}
+ .account-card>.row>.row button{flex:1}
+ .calendar-head{flex-wrap:wrap;gap:10px}
+ .calendar-nav{min-width:0;flex:1}
+ .calendar-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .week-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ai-context-row{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:380px){
+ .topbar-actions{grid-template-columns:minmax(0,1fr)}
+ .metric-grid{grid-template-columns:minmax(0,1fr)}
+ .calendar-summary,.week-summary{grid-template-columns:minmax(0,1fr)}
+}
+
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
