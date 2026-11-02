@@ -231,6 +231,36 @@ body.app-authenticated .auth-brand{display:none}
 .analytics-filters{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .analytics-filters select{width:auto;min-width:130px;max-width:180px;padding:9px 11px;font-size:12px}
 @media(max-width:720px){.analytics-filters{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.analytics-filters select{width:100%;min-width:0;max-width:none}.analytics-filters select:first-child{grid-column:1/-1}}
+
+/* Finition UX — lisibilité des formulaires et de l'historique */
+.panel{box-shadow:0 8px 28px rgba(38,25,82,.045)}
+.field label{display:block;margin-bottom:7px;color:#625b78;font-size:12px;font-weight:650;letter-spacing:.01em}
+.field input:not([type=checkbox]),.field select,.field textarea,
+.form input:not([type=checkbox]),.form select,.form textarea{
+ min-height:43px;border:1px solid #e6e1f0;border-radius:10px;background:#fff;
+ padding:10px 12px;color:#29243c;transition:border-color .18s,box-shadow .18s
+}
+.field input:focus,.field select:focus,.field textarea:focus,
+.form input:focus,.form select:focus,.form textarea:focus{
+ outline:none;border-color:#967cf0;box-shadow:0 0 0 3px rgba(126,91,230,.12)
+}
+.tablewrap{border:1px solid #eeeaf5;border-radius:12px;overflow:auto;background:#fff}
+table{border-collapse:separate;border-spacing:0;min-width:760px}
+thead th{position:sticky;top:0;z-index:1;background:#f8f6fc;color:#6e6683;font-size:11px;font-weight:700;letter-spacing:.045em;text-transform:uppercase}
+tbody td{border-bottom:1px solid #f0edf5;padding:12px 11px;font-size:12px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:#fbfaff}
+.trade-pagination{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(74,48,150,.13)}
+@media(max-width:720px){
+ .panel{border-radius:14px}
+ .tablewrap{border-radius:10px;overscroll-behavior-x:contain}
+ .tablewrap table{min-width:820px}
+ .trade-pagination{justify-content:center}
+ .field input:not([type=checkbox]),.field select,.field textarea{font-size:16px}
+}
+
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
