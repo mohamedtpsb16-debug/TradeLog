@@ -545,10 +545,22 @@ function periodBounds(){
  }
  return{start,end};
 }
+function syncActivePeriodFromUI(){
+ const selector=$('periodFilter');
+ if(!selector)return;
+ const key=selector.value||'all';
+ const start=key==='custom'?($('periodStart')?.value||null):null;
+ const end=key==='custom'?($('periodEnd')?.value||null):null;
+ const nextKey=key+'|'+(start||'')+'|'+(end||'');
+ const currentKey=activePeriod.key+'|'+(activePeriod.start||'')+'|'+(activePeriod.end||'');
+ if(nextKey!==currentKey){activePeriod={key,start,end};periodTradesCache.source=null;}
+ return{key,start,end};
+}
 function tradesInPeriod(list){
- const key=activePeriod.key+'|'+(activePeriod.start||'')+'|'+(activePeriod.end||'');
+ const period=syncActivePeriodFromUI()||activePeriod;
+ const key=period.key+'|'+(period.start||'')+'|'+(period.end||'');
  if(periodTradesCache.source===list&&periodTradesCache.key===key)return periodTradesCache.value;
- const bounds=periodRange(activePeriod.key,activePeriod.start,activePeriod.end);
+ const bounds=periodRange(period.key,period.start,period.end);
  const result=list.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!bounds.start||d>=bounds.start)&&(!bounds.end||d<=bounds.end)});
  periodTradesCache={source:list,key,value:result};return result;
 }
@@ -575,7 +587,12 @@ function setActivePeriod(key,start=null,end=null){
  const el=$('periodFilter');if(el)el.value=key;
  $('customPeriod')?.classList.toggle('hidden',key!=='custom');
 }
-function onPeriodChange(){setActivePeriod($('periodFilter').value);if(activePeriod.key!=='custom')refreshPeriodViews();}
+function onPeriodChange(){
+ const selector=$('periodFilter');if(!selector)return;
+ const key=selector.value;
+ if(key==='custom'){$('customPeriod')?.classList.remove('hidden');return;}
+ setActivePeriod(key);periodTradesCache.source=null;refreshPeriodViews();
+}
 function onHistoryPeriodChange(){
  const el=$('historyPeriodFilter');
  historyPeriod={key:el?el.value:'all',start:null,end:null};
