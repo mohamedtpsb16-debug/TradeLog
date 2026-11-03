@@ -1,4 +1,4 @@
-const CACHE='tradelog-static-v20';
+const CACHE='tradelog-static-v21';
 const ASSETS=['./','./index.html','./manifest.webmanifest'];
 
 self.addEventListener('install',event=>{
