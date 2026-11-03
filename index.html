@@ -400,9 +400,10 @@ tbody tr:hover td{background:#fbfaff}
 <section id="trades" class="tabpage hidden">
 <div class="section-title"><h2>Historique des trades</h2><button class="btn" type="button" onclick="openNewTrade()">＋ Ajouter un trade</button></div>
 <div class="panel"><div class="form">
+<div class="field"><label>Période</label><select id="historyPeriodFilter" onchange="onHistoryPeriodChange()"><option value="all">Tout l’historique</option><option value="today">Aujourd’hui</option><option value="7d">7 derniers jours</option><option value="month">Ce mois</option><option value="3m">3 derniers mois</option><option value="6m">6 derniers mois</option><option value="custom">Personnalisée</option></select></div>
 <div class="field"><label>Compte</label><select id="filterAccount" onchange="renderHistory()"><option value="all">Tous les comptes</option></select></div>
 <div class="field"><label>Résultat</label><select id="filterResult" onchange="renderHistory()"><option value="all">Tous</option><option value="TP">TP</option><option value="SL">SL</option><option value="PARTIAL">CP</option><option value="BE">BE</option></select></div>
-</div><div class="tablewrap" style="margin-top:14px"><table><thead><tr><th>Date</th><th>Compte</th><th>Setup</th><th>Ordre</th><th>Résultat</th><th>PNL net</th><th>PNL (%)</th><th>R multiple</th><th>Plan</th><th>Actions</th></tr></thead><tbody id="tradeRows"></tbody></table></div><div id="tradeEmpty" class="empty hidden">Aucun trade enregistré pour ces filtres.</div><div id="tradePagination" class="trade-pagination"></div><div id="fileLinks" class="tiny"></div></div>
+</div><div id="historyCustomPeriod" class="form hidden" style="margin-top:10px"><div class="field"><label>Du</label><input id="historyPeriodStart" type="date"></div><div class="field"><label>Au</label><input id="historyPeriodEnd" type="date"></div><div class="field"><label>&nbsp;</label><button class="btn light" type="button" onclick="applyHistoryCustomPeriod()">Appliquer</button></div></div><div class="tablewrap" style="margin-top:14px"><table><thead><tr><th>Date</th><th>Compte</th><th>Setup</th><th>Ordre</th><th>Résultat</th><th>PNL net</th><th>PNL (%)</th><th>R multiple</th><th>Plan</th><th>Actions</th></tr></thead><tbody id="tradeRows"></tbody></table></div><div id="tradeEmpty" class="empty hidden">Aucun trade enregistré pour ces filtres.</div><div id="tradePagination" class="trade-pagination"></div><div id="fileLinks" class="tiny"></div></div>
 </section>
 <section id="newtrade" class="tabpage hidden"><div class="section-title"><h2 id="tradePageTitle">Enregistrer un trade</h2><button class="btn light" type="button" onclick="switchTab('trades')">Retour à l'historique</button></div><div class="panel"><form id="tradeForm" class="form"><input id="tradeEditId" type="hidden"><div class="field"><label>Date</label><input id="tDate" type="date" required></div><div class="field"><label>Compte</label><select id="tAccount" required></select></div><div class="field"><label>Instrument</label><input id="tSymbol" list="assetOptions" placeholder="Ex. XAUUSD, NAS100, US30..." autocomplete="off" required><datalist id="assetOptions"></datalist><div class="tiny muted">Saisis librement n’importe quel actif. Il sera proposé automatiquement lors de tes prochains trades.</div></div><div class="field"><label>Stratégie</label><select id="tSetup"><option>SMC Setup 1</option><option>SMC Setup 2</option><option>SMC Setup 3</option></select></div><div class="field"><label>Ordre</label><select id="tSide"><option>BUY</option><option>SELL</option></select></div><div class="field"><label>Résultat</label><select id="tResult"><option value="TP">TP</option><option value="SL">SL</option><option value="PARTIAL">CP — SL déplacé à +1R minimum</option><option value="BE">BE</option></select></div><div class="field"><label>PNL brut</label><input id="tGross" type="number" step="0.01" required></div><div class="field"><label>Commissions (valeur négative si débit)</label><input id="tCommission" type="number" step="0.01" value="0"></div><div class="field"><label>Swap</label><input id="tSwap" type="number" step="0.01" value="0"></div><div class="field"><label>Autres frais</label><input id="tFees" type="number" step="0.01" value="0"></div><div class="field"><label>Émotion</label><select id="tEmotion"><option value="">Non renseignée</option><option>Calme / discipliné</option><option>Confiant</option><option>Stressé</option><option>Impatient</option><option>FOMO</option><option>Frustré</option><option>Fatigué</option><option>Euphorique</option></select></div><div class="field"><label>Biais psychologique</label><select id="tBias"><option value="">Aucun / non renseigné</option><option>FOMO</option><option>Revenge trading</option><option>Surconfiance</option><option>Hésitation</option><option>Sortie prématurée</option><option>Déplacement du SL</option><option>Surtrading</option><option>Autre</option></select></div><div class="field full"><label>Notes</label><textarea id="tNotes"></textarea></div><div class="field full"><label>Respect du plan de trading</label><div class="checks"><label><input id="tPlan" type="checkbox" style="width:auto"> J’ai respecté mon plan et mes règles sur ce trade.</label><label><input id="tRiskOk" type="checkbox" style="width:auto"> Le risque engagé respectait mon risque autorisé.</label><label><input id="tSetupOk" type="checkbox" style="width:auto"> Le setup était valide selon mes critères.</label></div></div><div class="field full"><label>Captures d’écran / fichiers (facultatif)</label><input id="tFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple><div class="tiny muted">JPEG, PNG ou WebP — 10 Mo maximum par fichier.</div></div><div class="field full"><div class="row"><button class="btn" type="submit">Enregistrer le trade</button><button class="btn light hidden" id="cancelTradeEdit" type="button">Annuler la modification</button></div></div></form></div></section><section id="calendar" class="tabpage hidden"><div class="section-title"><h2>Calendrier de performance</h2><select id="calendarAccount" style="max-width:230px"><option value="all">Tous les comptes</option></select></div><div class="panel"><div class="calendar-head"><div class="calendar-nav"><button class="btn light" id="calendarPrev" type="button">‹</button><div class="calendar-month" id="calendarMonth"></div><button class="btn light" id="calendarNext" type="button">›</button></div><button class="btn light" id="calendarToday" type="button">Aujourd'hui</button></div><div class="calendar-summary" id="calendarSummary"></div><div class="calendar-grid" id="calendarGrid"></div></div><div class="panel"><h3>Résumé hebdomadaire</h3><div class="week-summary" id="weekSummary"></div></div><div class="panel"><h3 id="calendarDayTitle">Détail de la journée</h3><div id="calendarDayTrades" class="muted tiny">Sélectionne une journée pour afficher les trades correspondants.</div></div></section><section id="analytics" class="tabpage hidden"><h2>Analyses & discipline</h2><div class="metric-grid" id="analysisMetrics"></div>
 <div class="panel"><h3>Performance par setup</h3><div class="tablewrap"><table><thead><tr><th>Setup</th><th>Trades</th><th>Win rate</th><th>PNL net</th><th>R moyen</th></tr></thead><tbody id="setupAnalysis"></tbody></table></div></div>
@@ -535,36 +536,36 @@ function periodBounds(){
  return{start,end};
 }
 function tradesInPeriod(list){
- // Always read the visible selector as the source of truth. This keeps every
- // dashboard redraw (including account changes) synchronized with the UI.
- const selector=$('periodFilter'),key=selector?.value||activePeriod.key;
- let bounds;
- if(key==='custom'){
-  const start=activePeriod.key==='custom'&&activePeriod.start?activePeriod.start:$('periodStart')?.value||'';
-  const end=activePeriod.key==='custom'&&activePeriod.end?activePeriod.end:$('periodEnd')?.value||'';
-  bounds={start:start||null,end:end||null};
- }else{
-  const saved=activePeriod.key;activePeriod.key=key;
-  bounds=periodBounds();activePeriod.key=saved;
- }
- return list.filter(t=>{
+ const key=activePeriod.key+'|'+(activePeriod.start||'')+'|'+(activePeriod.end||'');
+ if(periodTradesCache.source===list&&periodTradesCache.key===key)return periodTradesCache.value;
+ const bounds=periodBounds();
+ const result=list.filter(t=>{
   const d=String(t.trade_date||'').slice(0,10);
   return d.length===10&&(!bounds.start||d>=bounds.start)&&(!bounds.end||d<=bounds.end);
  });
+ periodTradesCache={source:list,key,value:result};
+ return result;
 }
-function refreshPeriodViews(){renderDashboard();renderHistory();renderAnalytics();}
-function onPeriodChange(){
- const k=$('periodFilter').value;
- activePeriod={key:k,start:null,end:null};
- $('customPeriod').classList.toggle('hidden',k!=='custom');
- if(k!=='custom')refreshPeriodViews();
+let periodTradesCache={source:null,key:'',value:[]};
+function refreshPeriodViews(){periodTradesCache.source=null;renderDashboard();renderHistory();renderAnalytics();}
+function setActivePeriod(key,start=null,end=null){
+ activePeriod={key,start,end};
+ ['periodFilter','historyPeriodFilter'].forEach(id=>{const el=$(id);if(el)el.value=key});
+ $('customPeriod')?.classList.toggle('hidden',key!=='custom');
+ $('historyCustomPeriod')?.classList.toggle('hidden',key!=='custom');
 }
+function onPeriodChange(){setActivePeriod($('periodFilter').value);if(activePeriod.key!=='custom')refreshPeriodViews();}
+function onHistoryPeriodChange(){setActivePeriod($('historyPeriodFilter').value);if(activePeriod.key!=='custom')refreshPeriodViews();}
 function applyCustomPeriod(){
  const start=$('periodStart').value,end=$('periodEnd').value;
  if(!start||!end||start>end){alert('Choisis une période valide.');return}
- activePeriod={key:'custom',start,end};
- $('periodFilter').value='custom';
- refreshPeriodViews();
+ setActivePeriod('custom',start,end);refreshPeriodViews();
+}
+function applyHistoryCustomPeriod(){
+ const start=$('historyPeriodStart').value,end=$('historyPeriodEnd').value;
+ if(!start||!end||start>end){alert('Choisis une période valide.');return}
+ $('periodStart').value=start;$('periodEnd').value=end;
+ setActivePeriod('custom',start,end);refreshPeriodViews();
 }
 async function loadAll(){
  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Le serveur ne répond pas après 20 secondes. Vérifie ta connexion puis réessaie.')),20000));
@@ -608,9 +609,10 @@ function renderDashboard(){
 }
 
 function renderDashboardCharts(ts){
- const sorted=[...ts].sort((a,b)=>String(a.trade_date).localeCompare(String(b.trade_date)));
+ const byDay=new Map();
+ ts.forEach(t=>{const d=String(t.trade_date||'').slice(0,10);byDay.set(d,(byDay.get(d)||0)+Number(t.pnl_net||0))});
  let cumulative=0;
- const points=sorted.map(t=>({date:String(t.trade_date).slice(0,10),value:(cumulative+=Number(t.pnl_net||0))}));
+ const points=[...byDay.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([date,pnl])=>({date,value:(cumulative+=pnl)}));
  const w=620,h=230,pad={l:48,r:18,t:18,b:32},vals=points.map(p=>p.value);
  let min=Math.min(0,...vals),max=Math.max(0,...vals);if(max===min){max+=1;min-=1}
  const x=i=>pad.l+(points.length<=1?0:i*(w-pad.l-pad.r)/(points.length-1)),y=v=>h-pad.b-(v-min)*(h-pad.t-pad.b)/(max-min);
