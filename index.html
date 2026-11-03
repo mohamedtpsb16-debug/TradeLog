@@ -535,8 +535,22 @@ function periodBounds(){
  return{start,end};
 }
 function tradesInPeriod(list){
- const b=periodBounds();
- return list.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return(!b.start||d>=b.start)&&(!b.end||d<=b.end)});
+ // Always read the visible selector as the source of truth. This keeps every
+ // dashboard redraw (including account changes) synchronized with the UI.
+ const selector=$('periodFilter'),key=selector?.value||activePeriod.key;
+ let bounds;
+ if(key==='custom'){
+  const start=activePeriod.key==='custom'&&activePeriod.start?activePeriod.start:$('periodStart')?.value||'';
+  const end=activePeriod.key==='custom'&&activePeriod.end?activePeriod.end:$('periodEnd')?.value||'';
+  bounds={start:start||null,end:end||null};
+ }else{
+  const saved=activePeriod.key;activePeriod.key=key;
+  bounds=periodBounds();activePeriod.key=saved;
+ }
+ return list.filter(t=>{
+  const d=String(t.trade_date||'').slice(0,10);
+  return d.length===10&&(!bounds.start||d>=bounds.start)&&(!bounds.end||d<=bounds.end);
+ });
 }
 function refreshPeriodViews(){renderDashboard();renderHistory();renderAnalytics();}
 function onPeriodChange(){
