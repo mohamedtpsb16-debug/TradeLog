@@ -843,7 +843,7 @@ $('accountList').addEventListener('click',async e=>{const b=e.target.closest('[d
 function renderAnalytics(){
  const analyticsTrades=tradesInPeriod(trades);
  let net=0,wins=0,rrTotal=0,plan=0,risk=0,valid=0;
- const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 2':{count:0,pnl:0,wins:0,rr:0}};
+ const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 2':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 3':{count:0,pnl:0,wins:0,rr:0}};
  const emotions={},biases={};
  for(const t of analyticsTrades){
   const pnl=Number(t.pnl_net||0);net+=pnl;rrTotal+=Number(t.rr||0);
