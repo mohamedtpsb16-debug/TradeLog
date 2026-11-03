@@ -390,6 +390,11 @@ tbody tr:hover td{background:#fbfaff}
 .trade-page-arrow{width:36px;height:34px;min-width:36px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;font-size:21px;line-height:1;font-weight:700}
 #tradePagination{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
+
+#tradePagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:12px}
+.trade-page-controls{display:inline-flex;align-items:center;gap:9px}
+.trade-page-arrow{width:44px!important;height:42px!important;min-width:44px!important;padding:0!important;border-radius:12px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:27px!important;line-height:1!important;font-weight:800!important}
+
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
@@ -554,16 +559,16 @@ function refreshPeriodViews(){periodTradesCache.source=null;renderDashboard();re
 function periodRange(key,start=null,end=null){
  if(key==='custom')return{start:start||null,end:end||null};
  const now=new Date(),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
- let from=null,to=iso(now);
+ const today=iso(now);let from=null;
  switch(key){
   case'all':return{start:null,end:null};
-  case'today':from=iso(now);break;
+  case'today':from=today;break;
   case'7d':from=iso(new Date(now.getFullYear(),now.getMonth(),now.getDate()-6));break;
   case'month':from=iso(new Date(now.getFullYear(),now.getMonth(),1));break;
   case'3m':from=iso(new Date(now.getFullYear(),now.getMonth()-3,now.getDate()));break;
   case'6m':from=iso(new Date(now.getFullYear(),now.getMonth()-6,now.getDate()));break;
  }
- return{start:from,end:to};
+ return{start:from,end:today};
 }
 function setActivePeriod(key,start=null,end=null){
  activePeriod={key,start,end};periodTradesCache.source=null;
@@ -572,7 +577,8 @@ function setActivePeriod(key,start=null,end=null){
 }
 function onPeriodChange(){setActivePeriod($('periodFilter').value);if(activePeriod.key!=='custom')refreshPeriodViews();}
 function onHistoryPeriodChange(){
- historyPeriod={key:$('historyPeriodFilter').value,start:null,end:null};
+ const el=$('historyPeriodFilter');
+ historyPeriod={key:el?el.value:'all',start:null,end:null};
  historyPeriodCache.source=null;
  $('historyCustomPeriod')?.classList.toggle('hidden',historyPeriod.key!=='custom');
  if(historyPeriod.key!=='custom')renderHistory();
@@ -585,8 +591,7 @@ function applyCustomPeriod(){
 function applyHistoryCustomPeriod(){
  const start=$('historyPeriodStart').value,end=$('historyPeriodEnd').value;
  if(!start||!end||start>end){alert('Choisis une période valide.');return}
- historyPeriod={key:'custom',start,end};historyPeriodCache.source=null;
- renderHistory();
+ historyPeriod={key:'custom',start,end};historyPeriodCache.source=null;renderHistory();
 }
 async function loadAll(){
  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Le serveur ne répond pas après 20 secondes. Vérifie ta connexion puis réessaie.')),20000));
@@ -656,17 +661,22 @@ $('calendarPrev').onclick=()=>{calendarCursor.setMonth(calendarCursor.getMonth()
 let historyVisibleCount=5,historyFilterKey='';
 function renderHistory(){
  const account=$('filterAccount').value||'all',result=$('filterResult').value||'all';
- const periodKey=historyPeriod.key+'|'+(historyPeriod.start||'')+'|'+(historyPeriod.end||'');
- const filterKey=account+'|'+result+'|'+periodKey;
+ const periodSelect=$('historyPeriodFilter');
+ const periodKey=periodSelect?.value||historyPeriod.key||'all';
+ if(periodKey!==historyPeriod.key){historyPeriod={key:periodKey,start:null,end:null};historyPeriodCache.source=null}
+ const periodStart=periodKey==='custom'?($('historyPeriodStart')?.value||historyPeriod.start):null;
+ const periodEnd=periodKey==='custom'?($('historyPeriodEnd')?.value||historyPeriod.end):null;
+ const cacheKey=periodKey+'|'+(periodStart||'')+'|'+(periodEnd||'');
+ const filterKey=account+'|'+result+'|'+cacheKey;
  if(filterKey!==historyFilterKey){historyFilterKey=filterKey;historyVisibleCount=5}
- const range=periodRange(historyPeriod.key,historyPeriod.start,historyPeriod.end);
- let base=historyPeriodCache.source===trades&&historyPeriodCache.key===periodKey?historyPeriodCache.value:null;
- if(!base){base=trades.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!range.start||d>=range.start)&&(!range.end||d<=range.end)});historyPeriodCache={source:trades,key:periodKey,value:base};}
+ const range=periodRange(periodKey,periodStart,periodEnd);
+ let base=historyPeriodCache.source===trades&&historyPeriodCache.key===cacheKey?historyPeriodCache.value:null;
+ if(!base){base=trades.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!range.start||d>=range.start)&&(!range.end||d<=range.end)});historyPeriodCache={source:trades,key:cacheKey,value:base};}
  const ts=base.filter(t=>(account==='all'||t.account_id===account)&&(result==='all'||t.result===result));
  const shown=ts.slice(0,historyVisibleCount);
  $('tradeRows').innerHTML=shown.length?shown.map(t=>{const a=accounts.find(x=>x.id===t.account_id),pct=Number(a?.capital)>0?Number(t.pnl_net||0)/Number(a.capital)*100:null;return '<tr><td>'+formatDate(t.trade_date)+'</td><td>'+esc(a?.name||'')+'</td><td>'+esc(t.setup||'')+'</td><td>'+esc(t.side||'')+'</td><td>'+esc(t.result==='PARTIAL'?'CP':t.result||'')+'</td><td class="'+(Number(t.pnl_net)>=0?'good':'bad')+'">'+money(t.pnl_net)+'</td><td class="'+(pct===null?'':pct>=0?'good':'bad')+'">'+(pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%')+'</td><td>'+Number(t.rr||0).toFixed(2)+'R</td><td>'+(t.plan_respected?'Oui':'Non')+'</td><td><details class="trade-actions"><summary aria-label="Actions du trade" title="Actions">⋯</summary><div class="trade-action-menu"><button type="button" data-edit-trade="'+t.id+'">Modifier</button><button type="button" data-files="'+t.id+'">Pièces jointes</button> '+(t.result!=='PARTIAL'?'<button type="button" data-mark-cp="'+t.id+'">Marquer CP</button>':'')+'<button type="button" class="danger-action" data-delete-trade="'+t.id+'">Supprimer</button></div></details></td></tr>'}).join(''):'';
  $('tradeEmpty').classList.toggle('hidden',ts.length>0);
- $('tradePagination').innerHTML=ts.length>5?'<span class="tiny">Affichage de '+shown.length+' sur '+ts.length+' trades</span><span class="trade-page-controls">'+(historyVisibleCount>5?'<button type="button" class="btn light trade-page-arrow" id="showLessTrades" aria-label="Afficher 10 trades de moins" title="Afficher 10 trades de moins">←</button>':'')+(shown.length<ts.length?'<button type="button" class="btn light trade-page-arrow" id="showMoreTrades" aria-label="Afficher 10 trades de plus" title="Afficher 10 trades de plus">→</button>':'')+'</span>':'';
+ $('tradePagination').innerHTML=ts.length>5?'<span class="tiny">Affichage de '+shown.length+' sur '+ts.length+' trades</span><span class="trade-page-controls">'+(historyVisibleCount>5?'<button type="button" class="btn light trade-page-arrow" id="showLessTrades" aria-label="Afficher moins" title="Afficher 10 trades de moins">↑</button>':'')+(shown.length<ts.length?'<button type="button" class="btn primary-action trade-page-arrow" id="showMoreTrades" aria-label="Afficher plus" title="Afficher 10 trades de plus">↓</button>':'')+'</span>':'';
  const more=$('showMoreTrades');if(more)more.onclick=()=>{historyVisibleCount=Math.min(historyVisibleCount+10,ts.length);renderHistory()};
  const less=$('showLessTrades');if(less)less.onclick=()=>{historyVisibleCount=Math.max(5,historyVisibleCount-10);renderHistory()};
 }
