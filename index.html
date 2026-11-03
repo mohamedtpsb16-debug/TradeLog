@@ -538,24 +538,40 @@ function periodBounds(){
 function tradesInPeriod(list){
  const key=activePeriod.key+'|'+(activePeriod.start||'')+'|'+(activePeriod.end||'');
  if(periodTradesCache.source===list&&periodTradesCache.key===key)return periodTradesCache.value;
- const bounds=periodBounds();
- const result=list.filter(t=>{
-  const d=String(t.trade_date||'').slice(0,10);
-  return d.length===10&&(!bounds.start||d>=bounds.start)&&(!bounds.end||d<=bounds.end);
- });
- periodTradesCache={source:list,key,value:result};
- return result;
+ const bounds=periodRange(activePeriod.key,activePeriod.start,activePeriod.end);
+ const result=list.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!bounds.start||d>=bounds.start)&&(!bounds.end||d<=bounds.end)});
+ periodTradesCache={source:list,key,value:result};return result;
 }
 let periodTradesCache={source:null,key:'',value:[]};
-function refreshPeriodViews(){periodTradesCache.source=null;renderDashboard();renderHistory();renderAnalytics();}
+let historyPeriod={key:'all',start:null,end:null};
+let historyPeriodCache={source:null,key:'',value:[]};
+function refreshPeriodViews(){periodTradesCache.source=null;renderDashboard();renderAnalytics();}
+function periodRange(key,start=null,end=null){
+ if(key==='custom')return{start:start||null,end:end||null};
+ const now=new Date(),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ let from=null,to=iso(now);
+ switch(key){
+  case'all':return{start:null,end:null};
+  case'today':from=iso(now);break;
+  case'7d':from=iso(new Date(now.getFullYear(),now.getMonth(),now.getDate()-6));break;
+  case'month':from=iso(new Date(now.getFullYear(),now.getMonth(),1));break;
+  case'3m':from=iso(new Date(now.getFullYear(),now.getMonth()-3,now.getDate()));break;
+  case'6m':from=iso(new Date(now.getFullYear(),now.getMonth()-6,now.getDate()));break;
+ }
+ return{start:from,end:to};
+}
 function setActivePeriod(key,start=null,end=null){
- activePeriod={key,start,end};
- ['periodFilter','historyPeriodFilter'].forEach(id=>{const el=$(id);if(el)el.value=key});
+ activePeriod={key,start,end};periodTradesCache.source=null;
+ const el=$('periodFilter');if(el)el.value=key;
  $('customPeriod')?.classList.toggle('hidden',key!=='custom');
- $('historyCustomPeriod')?.classList.toggle('hidden',key!=='custom');
 }
 function onPeriodChange(){setActivePeriod($('periodFilter').value);if(activePeriod.key!=='custom')refreshPeriodViews();}
-function onHistoryPeriodChange(){setActivePeriod($('historyPeriodFilter').value);if(activePeriod.key!=='custom')refreshPeriodViews();}
+function onHistoryPeriodChange(){
+ historyPeriod={key:$('historyPeriodFilter').value,start:null,end:null};
+ historyPeriodCache.source=null;
+ $('historyCustomPeriod')?.classList.toggle('hidden',historyPeriod.key!=='custom');
+ if(historyPeriod.key!=='custom')renderHistory();
+}
 function applyCustomPeriod(){
  const start=$('periodStart').value,end=$('periodEnd').value;
  if(!start||!end||start>end){alert('Choisis une période valide.');return}
@@ -564,8 +580,8 @@ function applyCustomPeriod(){
 function applyHistoryCustomPeriod(){
  const start=$('historyPeriodStart').value,end=$('historyPeriodEnd').value;
  if(!start||!end||start>end){alert('Choisis une période valide.');return}
- $('periodStart').value=start;$('periodEnd').value=end;
- setActivePeriod('custom',start,end);refreshPeriodViews();
+ historyPeriod={key:'custom',start,end};historyPeriodCache.source=null;
+ renderHistory();
 }
 async function loadAll(){
  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Le serveur ne répond pas après 20 secondes. Vérifie ta connexion puis réessaie.')),20000));
@@ -635,9 +651,12 @@ $('calendarPrev').onclick=()=>{calendarCursor.setMonth(calendarCursor.getMonth()
 let historyVisibleCount=5,historyFilterKey='';
 function renderHistory(){
  const account=$('filterAccount').value||'all',result=$('filterResult').value||'all';
- const filterKey=account+'|'+result+'|'+activePeriod.key+'|'+(activePeriod.start||'')+'|'+(activePeriod.end||'');
+ const filterKey=account+'|'+result+'|'+historyPeriod.key+'|'+(historyPeriod.start||'')+'|'+(historyPeriod.end||'');
  if(filterKey!==historyFilterKey){historyFilterKey=filterKey;historyVisibleCount=5}
- const ts=tradesInPeriod(trades).filter(t=>(account==='all'||t.account_id===account)&&(result==='all'||t.result===result));
+ const range=periodRange(historyPeriod.key,historyPeriod.start,historyPeriod.end);
+ let base=historyPeriodCache.source===trades&&historyPeriodCache.key===filterKey?historyPeriodCache.value:null;
+ if(!base){base=trades.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!range.start||d>=range.start)&&(!range.end||d<=range.end)});historyPeriodCache={source:trades,key:filterKey,value:base};}
+ const ts=base.filter(t=>(account==='all'||t.account_id===account)&&(result==='all'||t.result===result));
  const shown=ts.slice(0,historyVisibleCount);
  $('tradeRows').innerHTML=shown.length?shown.map(t=>{const a=accounts.find(x=>x.id===t.account_id),pct=Number(a?.capital)>0?Number(t.pnl_net||0)/Number(a.capital)*100:null;return '<tr><td>'+formatDate(t.trade_date)+'</td><td>'+esc(a?.name||'')+'</td><td>'+esc(t.setup||'')+'</td><td>'+esc(t.side||'')+'</td><td>'+esc(t.result==='PARTIAL'?'CP':t.result||'')+'</td><td class="'+(Number(t.pnl_net)>=0?'good':'bad')+'">'+money(t.pnl_net)+'</td><td class="'+(pct===null?'':pct>=0?'good':'bad')+'">'+(pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%')+'</td><td>'+Number(t.rr||0).toFixed(2)+'R</td><td>'+(t.plan_respected?'Oui':'Non')+'</td><td><details class="trade-actions"><summary aria-label="Actions du trade" title="Actions">⋯</summary><div class="trade-action-menu"><button type="button" data-edit-trade="'+t.id+'">Modifier</button><button type="button" data-files="'+t.id+'">Pièces jointes</button> '+(t.result!=='PARTIAL'?'<button type="button" data-mark-cp="'+t.id+'">Marquer CP</button>':'')+'<button type="button" class="danger-action" data-delete-trade="'+t.id+'">Supprimer</button></div></details></td></tr>'}).join(''):'';
  $('tradeEmpty').classList.toggle('hidden',ts.length>0);
