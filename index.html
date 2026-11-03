@@ -351,7 +351,7 @@ tbody tr:hover td{background:#fbfaff}
 <section id="auth" class="panel auth"><h2>Connexion à TradeLog</h2><p class="muted tiny">Connecte-toi avec l'adresse e-mail et le mot de passe créés dans Supabase.</p><form id="loginForm" class="form" onsubmit="if(!window.__tradelogLoginReady){document.getElementById('authMsg').textContent='Le module de connexion ne s’est pas chargé. Ferme TradeLog, ouvre-le dans Safari et actualise la page.';return false;}return false;"><div class="field full"><label>Adresse e-mail</label><input id="email" type="email" autocomplete="username" required></div><div class="field full"><label>Mot de passe</label><input id="password" type="password" autocomplete="current-password" required></div><div class="field full"><button class="btn" type="submit">Se connecter</button></div></form><p id="authMsg" class="status"></p><button id="resetBtn" class="btn light">Mot de passe oublié ?</button></section>
 <section id="app" class="hidden"><div class="app-shell"><aside class="sidebar" id="appSidebar"><div class="sidebar-brand"><div class="sidebar-logo">TL</div><div><strong>TradeLog</strong><small>Journal de trading</small></div></div><nav class="tabs sidebar-nav" aria-label="Navigation principale"><button class="active" data-tab="dashboard"><span class="nav-icon">⌂</span><span>Tableau de bord</span></button><button data-tab="trades"><span class="nav-icon">▤</span><span>Mes trades</span></button><button data-tab="accounts"><span class="nav-icon">▱</span><span>Comptes & risques</span></button><button data-tab="analytics"><span class="nav-icon">▥</span><span>Analyses</span></button><button data-tab="calendar"><span class="nav-icon">▦</span><span>Calendrier</span></button><button data-tab="backup"><span class="nav-icon">⇧</span><span>Sauvegarde</span></button><button data-tab="assistant"><span class="nav-icon">✧</span><span>Assistant IA</span></button></nav><div class="sidebar-footer"><span class="profile-avatar">TL</span><div class="profile-label"><b>Mon espace</b><small>Journal personnel</small></div></div><button class="sidebar-logout" id="logout" type="button"><span aria-hidden="true">↪</span><span>Déconnexion</span></button></aside><div class="drawer-scrim" id="drawerScrim"></div><div class="app-main"><header class="app-topbar"><div class="topbar-left"><button class="icon-button mobile-menu-button" id="mobileMenuToggle" type="button" aria-label="Ouvrir le menu">☰</button><button class="icon-button desktop-collapse-button" id="sidebarToggle" type="button" aria-label="Réduire la navigation">☷</button><div><b id="welcome">Mon espace</b><div class="status" id="syncStatus">Synchronisation cloud</div></div></div><div class="topbar-actions"><button id="dashboardNewTrade" class="btn primary-action" type="button" onclick="openNewTrade()">＋ Nouveau trade</button></div></header><main class="app-content">
 <section id="dashboard" class="tabpage">
-<div class="section-title"><h2>Tableau de bord</h2><select id="dashAccount" style="max-width:220px" onchange="renderDashboard()"><option value="all">Tous les comptes</option></select></div>
+<div class="section-title"><h2>Tableau de bord</h2><div class="row" style="gap:6px;flex-wrap:wrap"><select id="periodFilter" aria-label="Période" style="max-width:155px" onchange="onPeriodChange()"><option value="all">Tout l’historique</option><option value="today">Aujourd’hui</option><option value="7d">7 derniers jours</option><option value="month">Ce mois</option><option value="3m">3 derniers mois</option><option value="6m">6 derniers mois</option><option value="custom">Personnalisée</option></select><select id="dashAccount" style="max-width:170px" onchange="renderDashboard()"><option value="all">Tous les comptes</option></select></div><div id="customPeriod" class="row hidden" style="gap:6px;margin-bottom:10px"><input id="periodStart" type="date" aria-label="Date de début" style="max-width:145px"><input id="periodEnd" type="date" aria-label="Date de fin" style="max-width:145px"><button class="btn light" type="button" onclick="applyCustomPeriod()">Appliquer</button></div>
 <div class="metric-grid" id="metrics"></div><div class="chart-grid" style="margin:14px 0"><div class="chart-box"><h3>Évolution du PNL cumulé</h3><div id="pnlChart"></div></div><div class="chart-box"><h3>Répartition des résultats</h3><div id="resultChart"></div></div></div>
 <div class="panel"><h3>Performance récente</h3><div id="recent" class="muted">Ajoute ton premier trade pour voir tes statistiques.</div></div>
 <div class="panel"><h3>Répartition par setup</h3><div id="dashboardSetups"></div></div>
@@ -478,19 +478,25 @@ $('aiSend').addEventListener('click',async()=>{
 function openNewTrade(){editingTradeId=null;switchTab('newtrade');$('tradeForm').reset();$('tDate').value=today();$('tFiles').value='';$('tradePageTitle').textContent='Enregistrer un trade';$('tGross').value='';$('tCommission').value='0';$('tSwap').value='0';$('tFees').value='0';$('tAccount').value=accounts[0]?.id||'';$('cancelTradeEdit').classList.add('hidden')}
 
 async function boot(){showApp(true);$('welcome').textContent='Bienvenue dans ton espace TradeLog';msg('syncStatus','Synchronisation cloud en cours…');try{await loadAll();msg('syncStatus','Synchronisation terminée · '+accounts.length+' compte(s), '+trades.length+' trade(s)','ok')}catch(err){msg('syncStatus','Échec de synchronisation : '+(err?.message||String(err)),'err')}}
-let riskChanges=[];
+let riskChanges=[],fundMovements=[];
+let activePeriod={key:'all',start:null,end:null};
+function periodBounds(){const n=new Date(),end=new Date(n.getFullYear(),n.getMonth(),n.getDate(),23,59,59,999);let start=null;switch(activePeriod.key){case'today':start=new Date(n.getFullYear(),n.getMonth(),n.getDate());break;case'7d':start=new Date(n.getFullYear(),n.getMonth(),n.getDate()-6);break;case'month':start=new Date(n.getFullYear(),n.getMonth(),1);break;case'3m':start=new Date(n.getFullYear(),n.getMonth()-3,n.getDate());break;case'6m':start=new Date(n.getFullYear(),n.getMonth()-6,n.getDate());break;case'custom':if(activePeriod.start&&activePeriod.end)return{start:new Date(activePeriod.start+'T00:00:00'),end:new Date(activePeriod.end+'T23:59:59.999')};}return{start,end};}
+function tradesInPeriod(list){const b=periodBounds();return list.filter(t=>{const d=new Date(String(t.trade_date).slice(0,10)+'T12:00:00');return(!b.start||d>=b.start)&&d<=b.end});}
+function onPeriodChange(){const k=$('periodFilter').value;activePeriod.key=k;$('customPeriod').classList.toggle('hidden',k!=='custom');if(k!=='custom'){renderDashboard();renderHistory();renderAnalytics();}}
+function applyCustomPeriod(){const start=$('periodStart').value,end=$('periodEnd').value;if(!start||!end||start>end){alert('Choisis une période valide.');return}activePeriod={key:'custom',start,end};renderDashboard();renderHistory();renderAnalytics();}
 async function loadAll(){
  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Le serveur ne répond pas après 20 secondes. Vérifie ta connexion puis réessaie.')),20000));
  const requests=Promise.all([
   sb.from('trading_accounts').select('*').order('created_at'),
   sb.from('trades').select('*').order('created_at',{ascending:false}),
-  sb.from('risk_changes').select('*').order('effective_at',{ascending:true})
+  sb.from('risk_changes').select('*').order('effective_at',{ascending:true}),
+  sb.from('account_movements').select('*').order('movement_date',{ascending:false})
  ]);
- const [ar,tr,rr]=await Promise.race([requests,timeout]);
- const failed=[ar,tr,rr].find(x=>x.error);
+ const [ar,tr,rr,mr]=await Promise.race([requests,timeout]);
+ const failed=[ar,tr,rr,mr].find(x=>x.error);
  if(failed)throw new Error(failed.error.message);
  accounts=(ar.data||[]).map(a=>({id:a.id,name:a.account_name,broker:a.broker,capital:a.initial_capital,risk:a.risk_percent,currency:a.currency,start:a.start_date}));
- trades=tr.data||[];riskChanges=rr.data||[];
+ trades=tr.data||[];riskChanges=rr.data||[];fundMovements=mr.data||[];
  const renderSteps=[['comptes',render],['tableau de bord',renderDashboard],['historique',renderHistory],['analyses',renderAnalytics],['calendrier',renderCalendar]];
  for(const [label,fn] of renderSteps){try{fn()}catch(err){console.error('TradeLog rendu '+label,err);throw new Error('Données récupérées, mais erreur d’affichage ('+label+') : '+(err?.message||String(err)))}}
 }
@@ -506,7 +512,7 @@ function render(){
  }).join('')||'<div class="panel muted">Aucun compte enregistré.</div>';
 }
 function renderDashboard(){
- const selected=$('dashAccount')?.value||'all',ts=trades.filter(t=>selected==='all'||t.account_id===selected);
+ const selected=$('dashAccount')?.value||'all',ts=tradesInPeriod(trades).filter(t=>selected==='all'||t.account_id===selected);
  const selectedAccounts=selected==='all'?accounts:accounts.filter(a=>a.id===selected);
  const selectedCurrency=selectedAccounts[0]?.currency||'USD';
  const net=ts.reduce((v,t)=>v+Number(t.pnl_net||0),0),wins=ts.filter(t=>Number(t.pnl_net||0)>0).length,rr=ts.length?ts.reduce((v,t)=>v+Number(t.rr||0),0)/ts.length:0;
@@ -547,7 +553,7 @@ function renderHistory(){
  const account=$('filterAccount').value||'all',result=$('filterResult').value||'all';
  const filterKey=account+'|'+result;
  if(filterKey!==historyFilterKey){historyFilterKey=filterKey;historyVisibleCount=5}
- const ts=trades.filter(t=>(account==='all'||t.account_id===account)&&(result==='all'||t.result===result));
+ const ts=tradesInPeriod(trades).filter(t=>(account==='all'||t.account_id===account)&&(result==='all'||t.result===result));
  const shown=ts.slice(0,historyVisibleCount);
  $('tradeRows').innerHTML=shown.length?shown.map(t=>{const a=accounts.find(x=>x.id===t.account_id),pct=Number(a?.capital)>0?Number(t.pnl_net||0)/Number(a.capital)*100:null;return '<tr><td>'+formatDate(t.trade_date)+'</td><td>'+esc(a?.name||'')+'</td><td>'+esc(t.setup||'')+'</td><td>'+esc(t.side||'')+'</td><td>'+esc(t.result==='PARTIAL'?'CP':t.result||'')+'</td><td class="'+(Number(t.pnl_net)>=0?'good':'bad')+'">'+money(t.pnl_net)+'</td><td class="'+(pct===null?'':pct>=0?'good':'bad')+'">'+(pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%')+'</td><td>'+Number(t.rr||0).toFixed(2)+'R</td><td>'+(t.plan_respected?'Oui':'Non')+'</td><td><details class="trade-actions"><summary aria-label="Actions du trade" title="Actions">⋯</summary><div class="trade-action-menu"><button type="button" data-edit-trade="'+t.id+'">Modifier</button><button type="button" data-files="'+t.id+'">Pièces jointes</button> '+(t.result!=='PARTIAL'?'<button type="button" data-mark-cp="'+t.id+'">Marquer CP</button>':'')+'<button type="button" class="danger-action" data-delete-trade="'+t.id+'">Supprimer</button></div></details></td></tr>'}).join(''):'';
  $('tradeEmpty').classList.toggle('hidden',ts.length>0);
@@ -689,14 +695,15 @@ $('accountList').addEventListener('click',async e=>{
 $('accountList').addEventListener('click',async e=>{const b=e.target.closest('[data-history]');if(!b)return;const {data,error}=await sb.from('risk_changes').select('*').eq('account_id',b.dataset.history).order('effective_at',{ascending:true});if(error){alert('Historique indisponible : '+error.message);return}const lines=(data||[]).map(x=>new Date(x.effective_at).toLocaleDateString('fr-FR')+' — capital '+money(x.initial_capital)+' — risque '+x.risk_percent+'%'+(x.note?' — '+x.note:'')).join('\n');alert(lines||'Aucun changement enregistré.')});
 
 function renderAnalytics(){
- const net=trades.reduce((v,t)=>v+Number(t.pnl_net||0),0),wins=trades.filter(t=>Number(t.pnl_net||0)>0).length,rr=trades.length?trades.reduce((v,t)=>v+Number(t.rr||0),0)/trades.length:0;
- const plan=trades.filter(t=>t.plan_respected).length,risk=trades.filter(t=>t.risk_respected).length,valid=trades.filter(t=>t.setup_valid).length;
- $('analysisMetrics').innerHTML=[['Trades',trades.length],['Win rate',trades.length?(wins/trades.length*100).toFixed(1)+'%':'—'],['RR moyen',trades.length?rr.toFixed(2)+'R':'—'],['Respect du plan',trades.length?(plan/trades.length*100).toFixed(0)+'%':'—']].map(x=>'<div class="stat"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
+ const analyticsTrades=tradesInPeriod(trades);
+ const net=analyticsTrades.reduce((v,t)=>v+Number(t.pnl_net||0),0),wins=analyticsTrades.filter(t=>Number(t.pnl_net||0)>0).length,rr=analyticsTrades.length?analyticsTrades.reduce((v,t)=>v+Number(t.rr||0),0)/analyticsTrades.length:0;
+ const plan=analyticsTrades.filter(t=>t.plan_respected).length,risk=analyticsTrades.filter(t=>t.risk_respected).length,valid=analyticsTrades.filter(t=>t.setup_valid).length;
+ $('analysisMetrics').innerHTML=[['Trades',analyticsTrades.length],['Win rate',analyticsTrades.length?(wins/analyticsTrades.length*100).toFixed(1)+'%':'—'],['RR moyen',analyticsTrades.length?rr.toFixed(2)+'R':'—'],['Respect du plan',analyticsTrades.length?(plan/analyticsTrades.length*100).toFixed(0)+'%':'—']].map(x=>'<div class="stat"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
  const setups=['SMC Setup 1','SMC Setup 2','SMC Setup 3'];
- $('setupAnalysis').innerHTML=setups.map(k=>{const a=trades.filter(t=>t.setup===k),p=a.reduce((v,t)=>v+Number(t.pnl_net||0),0),w=a.filter(t=>Number(t.pnl_net||0)>0).length,r=a.length?a.reduce((v,t)=>v+Number(t.rr||0),0)/a.length:0;return '<tr><td>'+k+'</td><td>'+a.length+'</td><td>'+(a.length?(w/a.length*100).toFixed(1)+'%':'—')+'</td><td>'+money(p)+'</td><td>'+(a.length?r.toFixed(2)+'R':'—')+'</td></tr>'}).join('');
- const emotions={},biases={};trades.forEach(t=>(t.emotions||[]).forEach(e=>emotions[e]=(emotions[e]||0)+1));trades.forEach(t=>(t.psychological_biases||[]).forEach(e=>biases[e]=(biases[e]||0)+1));
+ $('setupAnalysis').innerHTML=setups.map(k=>{const a=analyticsTrades.filter(t=>t.setup===k),p=a.reduce((v,t)=>v+Number(t.pnl_net||0),0),w=a.filter(t=>Number(t.pnl_net||0)>0).length,r=a.length?a.reduce((v,t)=>v+Number(t.rr||0),0)/a.length:0;return '<tr><td>'+k+'</td><td>'+a.length+'</td><td>'+(a.length?(w/a.length*100).toFixed(1)+'%':'—')+'</td><td>'+money(p)+'</td><td>'+(a.length?r.toFixed(2)+'R':'—')+'</td></tr>'}).join('');
+ const emotions={},biases={};analyticsTrades.forEach(t=>(t.emotions||[]).forEach(e=>emotions[e]=(emotions[e]||0)+1));analyticsTrades.forEach(t=>(t.psychological_biases||[]).forEach(e=>biases[e]=(biases[e]||0)+1));
  const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>'<li>'+esc(x[0])+' : '+x[1]+'</li>').join('')||'<li>Pas encore de données</li>';
- $('psychAnalysis').innerHTML='<p>Respect complet du plan : <b>'+(trades.length?(plan/trades.length*100).toFixed(0)+'%':'—')+'</b></p><div class="form"><div><b>Émotions les plus fréquentes</b><ul>'+top(emotions)+'</ul></div><div><b>Biais observés</b><ul>'+top(biases)+'</ul></div></div><p class="tiny muted">Respect du risque : '+risk+'/'+trades.length+' · Setup valide : '+valid+'/'+trades.length+'</p>';
+ $('psychAnalysis').innerHTML='<p>Respect complet du plan : <b>'+(trades.length?(plan/trades.length*100).toFixed(0)+'%':'—')+'</b></p><div class="form"><div><b>Émotions les plus fréquentes</b><ul>'+top(emotions)+'</ul></div><div><b>Biais observés</b><ul>'+top(biases)+'</ul></div></div><p class="tiny muted">Respect du risque : '+risk+'/'+analyticsTrades.length+' · Setup valide : '+valid+'/'+analyticsTrades.length+'</p>';
 }
 $('accountList').addEventListener('click',e=>{const b=e.target.closest('[data-risk]');if(!b)return;const a=accounts.find(x=>x.id===b.dataset.risk);if(!a)return;$('riskAccountId').value=a.id;$('rCapital').value=a.capital;$('rPercent').value=a.risk;$('rDate').value=today();$('rNote').value='';$('riskModal').classList.remove('hidden');$('riskModal').scrollIntoView({behavior:'smooth',block:'center'})});
 $('cancelRisk').onclick=()=>$('riskModal').classList.add('hidden');
