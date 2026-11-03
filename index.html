@@ -311,6 +311,40 @@ tbody tr:hover td{background:#fbfaff}
 .sidebar-logout:hover{background:#ffffff20}
 @media(max-width:720px){.sidebar-logout{margin-top:8px}}
 
+
+/* Compact mobile dashboard: reduce vertical scrolling without hiding information */
+@media(max-width:720px){
+ #dashboard>.section-title{margin:0 0 10px;gap:8px}
+ #dashboard>.section-title h2{display:none}
+ #dashboard>.section-title select{width:100%;max-width:none!important;min-height:42px;padding:9px 12px;font-size:14px}
+ #dashboard .metric-grid{gap:8px}
+ #dashboard .metric-grid .stat{padding:10px 11px;min-height:0;border-radius:14px}
+ #dashboard .metric-card .metric-head{gap:7px;align-items:center}
+ #dashboard .metric-card .metric-icon{width:28px;height:28px;border-radius:8px;font-size:15px}
+ #dashboard .metric-card .metric-head small{font-size:11px}
+ #dashboard .metric-card strong{font-size:19px;line-height:1.15;margin:7px 0 2px;letter-spacing:-.35px}
+ #dashboard .metric-card .metric-caption{font-size:9px;line-height:1.25}
+ #dashboard .chart-grid{margin:10px 0!important;gap:9px}
+ #dashboard .chart-box{padding:12px;border-radius:14px}
+ #dashboard .chart-box h3{font-size:13px;margin-bottom:8px}
+ #dashboard .chart-svg{max-height:170px}
+ #dashboard .donut-wrap{min-height:0;padding:5px 0}
+ #dashboard .donut{width:105px;height:105px}
+ #dashboard .donut:after{inset:22px}
+ #dashboard .donut-center{font-size:17px}
+ #dashboard .result-legend{gap:6px}
+ #dashboard>.panel{padding:13px;margin-bottom:9px}
+ #dashboard>.panel h3{font-size:14px;margin:0 0 8px}
+ #dashboard .tablewrap{margin-top:8px}
+}
+@media(max-width:390px){
+ #dashboard .metric-grid{gap:7px}
+ #dashboard .metric-grid .stat{padding:9px}
+ #dashboard .metric-card strong{font-size:17px}
+ #dashboard .metric-card .metric-caption{font-size:8px}
+ #dashboard .chart-box{padding:10px}
+}
+
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
