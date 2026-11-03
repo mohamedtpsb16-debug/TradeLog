@@ -410,7 +410,7 @@ tbody tr:hover td{background:#fbfaff}
 <section id="trades" class="tabpage hidden">
 <div class="section-title"><h2>Historique des trades</h2><button class="btn" type="button" onclick="openNewTrade()">＋ Ajouter un trade</button></div>
 <div class="panel"><div class="form">
-<div class="field"><label>Période</label><select id="historyPeriodFilter" onchange="onHistoryPeriodChange()"><option value="all">Tout l’historique</option><option value="today">Aujourd’hui</option><option value="7d">7 derniers jours</option><option value="month">Ce mois</option><option value="3m">3 derniers mois</option><option value="6m">6 derniers mois</option><option value="custom">Personnalisée</option></select></div>
+<div class="field"><label>Période</label><select id="historyPeriodFilter" onchange="onHistoryPeriodChange()"><option value="all">Tout l’historique</option><option value="today">Aujourd’hui</option><option value="week">Cette semaine</option><option value="month">Ce mois</option><option value="3m">3 derniers mois</option><option value="6m">6 derniers mois</option><option value="custom">Personnalisée</option></select></div>
 <div class="field"><label>Compte</label><select id="filterAccount" onchange="renderHistory()"><option value="all">Tous les comptes</option></select></div>
 <div class="field"><label>Résultat</label><select id="filterResult" onchange="renderHistory()"><option value="all">Tous</option><option value="TP">TP</option><option value="SL">SL</option><option value="PARTIAL">CP</option><option value="BE">BE</option></select></div>
 </div><div id="historyCustomPeriod" class="form hidden" style="margin-top:10px"><div class="field"><label>Du</label><input id="historyPeriodStart" type="date"></div><div class="field"><label>Au</label><input id="historyPeriodEnd" type="date"></div><div class="field"><label>&nbsp;</label><button class="btn light" type="button" onclick="applyHistoryCustomPeriod()">Appliquer</button></div></div><div class="tablewrap" style="margin-top:14px"><table><thead><tr><th>Date</th><th>Compte</th><th>Setup</th><th>Ordre</th><th>Résultat</th><th>PNL net</th><th>PNL (%)</th><th>R multiple</th><th>Plan</th><th>Actions</th></tr></thead><tbody id="tradeRows"></tbody></table></div><div id="tradeEmpty" class="empty hidden">Aucun trade enregistré pour ces filtres.</div><div id="tradePagination" class="trade-pagination"></div><div id="fileLinks" class="tiny"></div></div>
@@ -478,7 +478,7 @@ $('loginForm').addEventListener('submit',async e=>{
 window.__tradelogLoginReady=true;
 $('resetBtn').onclick=async()=>{const email=$('email').value.trim();if(!email){msg('authMsg','Saisis ton e-mail avant de demander la réinitialisation.','err');return}const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});msg('authMsg',error?error.message:'Lien de réinitialisation envoyé si cette adresse existe.',error?'err':'ok')};
 $('logout').onclick=async()=>{await sb.auth.signOut();user=null;showApp(false)};
-function switchTab(id){const activeId=id==='newtrade'?'trades':id;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===activeId));document.querySelectorAll('.tabpage').forEach(x=>x.classList.toggle('hidden',x.id!==id));$('dashboardNewTrade').classList.toggle('hidden',id!=='dashboard');document.body.classList.remove('drawer-open');const active=document.querySelector('.sidebar-nav [data-tab="'+activeId+'"]');if(id==='newtrade')$('welcome').textContent='Nouveau trade';else if(active){const label=active.querySelector('span:last-child');if(label)$('welcome').textContent=label.textContent.trim()}}
+function switchTab(id){const activeId=id==='newtrade'?'trades':id;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===activeId));document.querySelectorAll('.tabpage').forEach(x=>x.classList.toggle('hidden',x.id!==id));$('dashboardNewTrade').classList.toggle('hidden',id!=='dashboard');document.body.classList.remove('drawer-open');const active=document.querySelector('.sidebar-nav [data-tab="'+activeId+'"]');if(id==='analytics'&&analyticsNeedsRefresh){renderAnalytics();analyticsNeedsRefresh=false}if(id==='newtrade')$('welcome').textContent='Nouveau trade';else if(active){const label=active.querySelector('span:last-child');if(label)$('welcome').textContent=label.textContent.trim()}}
 
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{switchTab(b.dataset.tab);if(b.dataset.tab==='assistant')renderAITradeOptions()});
 $('sidebarToggle').addEventListener('click',()=>document.body.classList.toggle('sidebar-collapsed'));
@@ -567,7 +567,8 @@ function tradesInPeriod(list){
 let periodTradesCache={source:null,key:'',value:[]};
 let historyPeriod={key:'all',start:null,end:null};
 let historyPeriodCache={source:null,key:'',value:[]};
-function refreshPeriodViews(){periodTradesCache.source=null;renderDashboard();renderAnalytics();}
+let analyticsNeedsRefresh=false;
+function refreshPeriodViews(){periodTradesCache.source=null;renderDashboard();const page=$('analytics');if(page&&!page.classList.contains('hidden')){renderAnalytics();analyticsNeedsRefresh=false}else analyticsNeedsRefresh=true;}
 function periodRange(key,start=null,end=null){
  if(key==='custom')return{start:start||null,end:end||null};
  const now=new Date(),iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
