@@ -651,11 +651,12 @@ $('calendarPrev').onclick=()=>{calendarCursor.setMonth(calendarCursor.getMonth()
 let historyVisibleCount=5,historyFilterKey='';
 function renderHistory(){
  const account=$('filterAccount').value||'all',result=$('filterResult').value||'all';
- const filterKey=account+'|'+result+'|'+historyPeriod.key+'|'+(historyPeriod.start||'')+'|'+(historyPeriod.end||'');
+ const periodKey=historyPeriod.key+'|'+(historyPeriod.start||'')+'|'+(historyPeriod.end||'');
+ const filterKey=account+'|'+result+'|'+periodKey;
  if(filterKey!==historyFilterKey){historyFilterKey=filterKey;historyVisibleCount=5}
  const range=periodRange(historyPeriod.key,historyPeriod.start,historyPeriod.end);
- let base=historyPeriodCache.source===trades&&historyPeriodCache.key===filterKey?historyPeriodCache.value:null;
- if(!base){base=trades.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!range.start||d>=range.start)&&(!range.end||d<=range.end)});historyPeriodCache={source:trades,key:filterKey,value:base};}
+ let base=historyPeriodCache.source===trades&&historyPeriodCache.key===periodKey?historyPeriodCache.value:null;
+ if(!base){base=trades.filter(t=>{const d=String(t.trade_date||'').slice(0,10);return d.length===10&&(!range.start||d>=range.start)&&(!range.end||d<=range.end)});historyPeriodCache={source:trades,key:periodKey,value:base};}
  const ts=base.filter(t=>(account==='all'||t.account_id===account)&&(result==='all'||t.result===result));
  const shown=ts.slice(0,historyVisibleCount);
  $('tradeRows').innerHTML=shown.length?shown.map(t=>{const a=accounts.find(x=>x.id===t.account_id),pct=Number(a?.capital)>0?Number(t.pnl_net||0)/Number(a.capital)*100:null;return '<tr><td>'+formatDate(t.trade_date)+'</td><td>'+esc(a?.name||'')+'</td><td>'+esc(t.setup||'')+'</td><td>'+esc(t.side||'')+'</td><td>'+esc(t.result==='PARTIAL'?'CP':t.result||'')+'</td><td class="'+(Number(t.pnl_net)>=0?'good':'bad')+'">'+money(t.pnl_net)+'</td><td class="'+(pct===null?'':pct>=0?'good':'bad')+'">'+(pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%')+'</td><td>'+Number(t.rr||0).toFixed(2)+'R</td><td>'+(t.plan_respected?'Oui':'Non')+'</td><td><details class="trade-actions"><summary aria-label="Actions du trade" title="Actions">⋯</summary><div class="trade-action-menu"><button type="button" data-edit-trade="'+t.id+'">Modifier</button><button type="button" data-files="'+t.id+'">Pièces jointes</button> '+(t.result!=='PARTIAL'?'<button type="button" data-mark-cp="'+t.id+'">Marquer CP</button>':'')+'<button type="button" class="danger-action" data-delete-trade="'+t.id+'">Supprimer</button></div></details></td></tr>'}).join(''):'';
