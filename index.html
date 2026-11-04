@@ -397,6 +397,25 @@ tbody tr:hover td{background:#fbfaff}
 .trade-page-controls{display:inline-flex;align-items:center;gap:9px}
 .trade-page-arrow{width:44px!important;height:42px!important;min-width:44px!important;padding:0!important;border-radius:12px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:27px!important;line-height:1!important;font-weight:800!important}
 
+
+/* Synchronisation MT5 — panneau compact repliable, intégré au dashboard */
+.mt5-sync-panel{padding:0!important;margin:0 0 14px!important;overflow:hidden;border-radius:15px!important}
+.mt5-sync-summary{list-style:none;display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;min-height:68px}
+.mt5-sync-summary::-webkit-details-marker{display:none}
+.mt5-sync-mark{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:grid;place-items:center;background:#f0eefa;color:#643bee;font-size:11px;font-weight:850;letter-spacing:.3px}
+.mt5-sync-heading{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.mt5-sync-heading strong{font-size:14px;color:var(--ink)}
+.mt5-sync-heading small{font-size:11px;color:var(--muted)}
+.mt5-sync-summary .status{white-space:nowrap;font-size:11px}
+.mt5-sync-toggle{display:flex;align-items:center;gap:8px;color:var(--primary);font-size:12px;font-weight:750;white-space:nowrap}
+.mt5-sync-toggle b{font-size:17px;transition:transform .18s ease}
+.mt5-sync-panel[open] .mt5-sync-toggle b{transform:rotate(180deg)}
+.mt5-sync-content{padding:0 16px 15px;border-top:1px solid var(--line)}
+.mt5-sync-fields{display:grid;grid-template-columns:1.15fr 1.4fr .8fr;gap:12px;padding-top:14px}
+.mt5-sync-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mt5-sync-preview{margin-top:12px;overflow-x:auto}
+.mt5-sync-note{margin:12px 0 0;line-height:1.5}
+@media(max-width:720px){.mt5-sync-summary{gap:9px;padding:11px 12px;min-height:64px}.mt5-sync-mark{width:34px;height:34px;flex-basis:34px}.mt5-sync-heading strong{font-size:13px}.mt5-sync-heading small{font-size:10px}.mt5-sync-summary .status{display:none}.mt5-sync-toggle{font-size:11px}.mt5-sync-content{padding:0 12px 13px}.mt5-sync-fields{grid-template-columns:1fr;gap:10px}.mt5-sync-actions .btn{flex:1}}
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
@@ -404,17 +423,24 @@ tbody tr:hover td{background:#fbfaff}
 <section id="app" class="hidden"><div class="app-shell"><aside class="sidebar" id="appSidebar"><div class="sidebar-brand"><div class="sidebar-logo">TL</div><div><strong>TradeLog</strong><small>Journal de trading</small></div></div><nav class="tabs sidebar-nav" aria-label="Navigation principale"><button class="active" data-tab="dashboard"><span class="nav-icon">⌂</span><span>Tableau de bord</span></button><button data-tab="trades"><span class="nav-icon">▤</span><span>Mes trades</span></button><button data-tab="accounts"><span class="nav-icon">▱</span><span>Comptes & risques</span></button><button data-tab="analytics"><span class="nav-icon">▥</span><span>Analyses</span></button><button data-tab="calendar"><span class="nav-icon">▦</span><span>Calendrier</span></button><button data-tab="backup"><span class="nav-icon">⇧</span><span>Sauvegarde</span></button><button data-tab="assistant"><span class="nav-icon">✧</span><span>Assistant IA</span></button></nav><div class="sidebar-footer"><span class="profile-avatar">TL</span><div class="profile-label"><b>Mon espace</b><small>Journal personnel</small></div></div><button class="sidebar-logout" id="logout" type="button"><span aria-hidden="true">↪</span><span>Déconnexion</span></button></aside><div class="drawer-scrim" id="drawerScrim"></div><div class="app-main"><header class="app-topbar"><div class="topbar-left"><button class="icon-button mobile-menu-button" id="mobileMenuToggle" type="button" aria-label="Ouvrir le menu">☰</button><button class="icon-button desktop-collapse-button" id="sidebarToggle" type="button" aria-label="Réduire la navigation">☷</button><div><b id="welcome">Mon espace</b><div class="status" id="syncStatus">Synchronisation cloud</div></div></div><div class="topbar-actions"><button id="dashboardNewTrade" class="btn primary-action" type="button" onclick="openNewTrade()">＋ Nouveau trade</button></div></header><main class="app-content">
 <section id="dashboard" class="tabpage">
 <div class="section-title"><h2>Tableau de bord</h2><div class="row" style="gap:6px;flex-wrap:wrap"><select id="periodFilter" aria-label="Période" style="max-width:155px" onchange="onPeriodChange()"><option value="all">Tout l’historique</option><option value="today">Aujourd’hui</option><option value="week" selected>Cette semaine</option><option value="month">Ce mois</option><option value="3m">3 derniers mois</option><option value="6m">6 derniers mois</option><option value="custom">Personnalisée</option></select><select id="dashAccount" style="max-width:170px" onchange="renderDashboard()"><option value="all">Tous les comptes</option></select></div></div><div id="customPeriod" class="row hidden" style="gap:6px;margin-bottom:10px"><input id="periodStart" type="date" aria-label="Date de début" style="max-width:145px"><input id="periodEnd" type="date" aria-label="Date de fin" style="max-width:145px"><button class="btn light" type="button" onclick="applyCustomPeriod()">Appliquer</button></div>
-<div class="panel" id="mt5SyncPanel" style="margin-bottom:14px">
- <div class="row"><div><h3 style="margin:0 0 4px">Synchronisation MT5</h3><div class="tiny muted">Connexion locale sur ce PC Windows · lecture seule · import manuel</div></div><span id="mt5Status" class="status">Connecteur non vérifié</span></div>
- <div class="form" style="margin-top:12px">
-  <div class="field"><label for="mt5Account">Compte TradeLog de destination</label><select id="mt5Account"></select></div>
-  <div class="field"><label for="mt5Token">Jeton affiché par le connecteur Windows</label><input id="mt5Token" type="password" autocomplete="off" placeholder="Coller le jeton temporaire"></div>
-  <div class="field"><label for="mt5Days">Historique à lire</label><select id="mt5Days"><option value="30">30 derniers jours</option><option value="90" selected>90 derniers jours</option><option value="180">180 derniers jours</option><option value="365">365 derniers jours</option></select></div>
-  <div class="field" style="display:flex;align-items:end"><button class="btn light" id="mt5Check" type="button">Vérifier la connexion</button> <button class="btn" id="mt5Fetch" type="button">Lire l’historique MT5</button></div>
+<details class="panel mt5-sync-panel" id="mt5SyncPanel">
+ <summary class="mt5-sync-summary">
+  <span class="mt5-sync-mark" aria-hidden="true">MT5</span>
+  <span class="mt5-sync-heading"><strong>Synchronisation MT5</strong><small>Lecture seule · import manuel depuis ce PC</small></span>
+  <span id="mt5Status" class="status">Connecteur non vérifié</span>
+  <span class="mt5-sync-toggle">Configurer <b aria-hidden="true">⌄</b></span>
+ </summary>
+ <div class="mt5-sync-content">
+  <div class="mt5-sync-fields">
+   <div class="field"><label for="mt5Account">Compte TradeLog de destination</label><select id="mt5Account"></select></div>
+   <div class="field"><label for="mt5Token">Jeton temporaire du connecteur Windows</label><input id="mt5Token" type="password" autocomplete="off" placeholder="Coller le jeton temporaire"></div>
+   <div class="field"><label for="mt5Days">Période de l’historique</label><select id="mt5Days"><option value="30">30 derniers jours</option><option value="90" selected>90 derniers jours</option><option value="180">180 derniers jours</option><option value="365">365 derniers jours</option></select></div>
+  </div>
+  <div class="mt5-sync-actions"><button class="btn light" id="mt5Check" type="button">Vérifier la connexion</button><button class="btn" id="mt5Fetch" type="button">Lire l’historique MT5</button></div>
+  <div id="mt5Preview" class="mt5-preview"></div>
+  <p class="tiny muted mt5-sync-note">Aucun rapprochement automatique par date seule. Les imports sont identifiés par position et tickets MT5. Les champs psychologiques et le respect du plan restent à compléter manuellement.</p>
  </div>
- <div id="mt5Preview" style="margin-top:12px"></div>
- <div class="tiny muted" style="margin-top:10px">TradeLog ne rapproche pas automatiquement les opérations à partir de la date seule. Les imports MT5 sont identifiés par leur position et leurs tickets. Les champs psychologiques et le respect du plan restent vides pour les trades importés.</div>
-</div>
+</details>
 <div class="metric-grid" id="metrics"></div><div class="chart-grid" style="margin:14px 0"><div class="chart-box"><h3>Évolution du PNL cumulé</h3><div id="pnlChart"></div></div><div class="chart-box"><h3>Répartition des résultats</h3><div id="resultChart"></div></div></div>
 <div class="panel"><h3>Performance récente</h3><div id="recent" class="muted">Ajoute ton premier trade pour voir tes statistiques.</div></div>
 <div class="panel"><h3>Répartition par setup</h3><div id="dashboardSetups"></div></div>
