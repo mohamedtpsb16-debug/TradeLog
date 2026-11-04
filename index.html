@@ -404,6 +404,17 @@ tbody tr:hover td{background:#fbfaff}
 <section id="app" class="hidden"><div class="app-shell"><aside class="sidebar" id="appSidebar"><div class="sidebar-brand"><div class="sidebar-logo">TL</div><div><strong>TradeLog</strong><small>Journal de trading</small></div></div><nav class="tabs sidebar-nav" aria-label="Navigation principale"><button class="active" data-tab="dashboard"><span class="nav-icon">⌂</span><span>Tableau de bord</span></button><button data-tab="trades"><span class="nav-icon">▤</span><span>Mes trades</span></button><button data-tab="accounts"><span class="nav-icon">▱</span><span>Comptes & risques</span></button><button data-tab="analytics"><span class="nav-icon">▥</span><span>Analyses</span></button><button data-tab="calendar"><span class="nav-icon">▦</span><span>Calendrier</span></button><button data-tab="backup"><span class="nav-icon">⇧</span><span>Sauvegarde</span></button><button data-tab="assistant"><span class="nav-icon">✧</span><span>Assistant IA</span></button></nav><div class="sidebar-footer"><span class="profile-avatar">TL</span><div class="profile-label"><b>Mon espace</b><small>Journal personnel</small></div></div><button class="sidebar-logout" id="logout" type="button"><span aria-hidden="true">↪</span><span>Déconnexion</span></button></aside><div class="drawer-scrim" id="drawerScrim"></div><div class="app-main"><header class="app-topbar"><div class="topbar-left"><button class="icon-button mobile-menu-button" id="mobileMenuToggle" type="button" aria-label="Ouvrir le menu">☰</button><button class="icon-button desktop-collapse-button" id="sidebarToggle" type="button" aria-label="Réduire la navigation">☷</button><div><b id="welcome">Mon espace</b><div class="status" id="syncStatus">Synchronisation cloud</div></div></div><div class="topbar-actions"><button id="dashboardNewTrade" class="btn primary-action" type="button" onclick="openNewTrade()">＋ Nouveau trade</button></div></header><main class="app-content">
 <section id="dashboard" class="tabpage">
 <div class="section-title"><h2>Tableau de bord</h2><div class="row" style="gap:6px;flex-wrap:wrap"><select id="periodFilter" aria-label="Période" style="max-width:155px" onchange="onPeriodChange()"><option value="all">Tout l’historique</option><option value="today">Aujourd’hui</option><option value="week" selected>Cette semaine</option><option value="month">Ce mois</option><option value="3m">3 derniers mois</option><option value="6m">6 derniers mois</option><option value="custom">Personnalisée</option></select><select id="dashAccount" style="max-width:170px" onchange="renderDashboard()"><option value="all">Tous les comptes</option></select></div></div><div id="customPeriod" class="row hidden" style="gap:6px;margin-bottom:10px"><input id="periodStart" type="date" aria-label="Date de début" style="max-width:145px"><input id="periodEnd" type="date" aria-label="Date de fin" style="max-width:145px"><button class="btn light" type="button" onclick="applyCustomPeriod()">Appliquer</button></div>
+<div class="panel" id="mt5SyncPanel" style="margin-bottom:14px">
+ <div class="row"><div><h3 style="margin:0 0 4px">Synchronisation MT5</h3><div class="tiny muted">Connexion locale sur ce PC Windows · lecture seule · import manuel</div></div><span id="mt5Status" class="status">Connecteur non vérifié</span></div>
+ <div class="form" style="margin-top:12px">
+  <div class="field"><label for="mt5Account">Compte TradeLog de destination</label><select id="mt5Account"></select></div>
+  <div class="field"><label for="mt5Token">Jeton affiché par le connecteur Windows</label><input id="mt5Token" type="password" autocomplete="off" placeholder="Coller le jeton temporaire"></div>
+  <div class="field"><label for="mt5Days">Historique à lire</label><select id="mt5Days"><option value="30">30 derniers jours</option><option value="90" selected>90 derniers jours</option><option value="180">180 derniers jours</option><option value="365">365 derniers jours</option></select></div>
+  <div class="field" style="display:flex;align-items:end"><button class="btn light" id="mt5Check" type="button">Vérifier la connexion</button> <button class="btn" id="mt5Fetch" type="button">Lire l’historique MT5</button></div>
+ </div>
+ <div id="mt5Preview" style="margin-top:12px"></div>
+ <div class="tiny muted" style="margin-top:10px">TradeLog ne rapproche pas automatiquement les opérations à partir de la date seule. Les imports MT5 sont identifiés par leur position et leurs tickets. Les champs psychologiques et le respect du plan restent vides pour les trades importés.</div>
+</div>
 <div class="metric-grid" id="metrics"></div><div class="chart-grid" style="margin:14px 0"><div class="chart-box"><h3>Évolution du PNL cumulé</h3><div id="pnlChart"></div></div><div class="chart-box"><h3>Répartition des résultats</h3><div id="resultChart"></div></div></div>
 <div class="panel"><h3>Performance récente</h3><div id="recent" class="muted">Ajoute ton premier trade pour voir tes statistiques.</div></div>
 <div class="panel"><h3>Répartition par setup</h3><div id="dashboardSetups"></div></div>
@@ -924,6 +935,71 @@ document.addEventListener('click',async e=>{
  const cp=e.target.closest('[data-mark-cp]');if(cp){const t=trades.find(x=>x.id===cp.dataset.markCp);if(!t)return;if(!confirm('Classer ce trade en CP ? (SL déplacé à +1R minimum)'))return;cp.disabled=true;const {error}=await sb.from('trades').update({result:'PARTIAL'}).eq('id',t.id);if(error){cp.disabled=false;alert('Mise à jour impossible : '+error.message);return}await loadAll();return}const b=e.target.closest('[data-files]');if(!b)return;const t=trades.find(x=>x.id===b.dataset.files);if(!t)return;const paths=t.screenshot_paths||[];const links=[];for(let i=0;i<paths.length;i++){const path=paths[i],filename=(path.split('/').pop()||('capture-'+(i+1))).replace(/^\\d+_[a-f0-9-]+_/i,'');const {data,error}=await sb.storage.from('trade-screenshots').createSignedUrl(path,300);if(error){alert('Impossible de générer le lien d’une pièce jointe : '+error.message);return}const {data:downloadData,error:downloadError}=await sb.storage.from('trade-screenshots').createSignedUrl(path,300,{download:filename||('capture-'+(i+1))});if(downloadError){alert('Impossible de préparer le téléchargement : '+downloadError.message);return}links.push({open:data.signedUrl,download:downloadData.signedUrl,name:filename||('Capture '+(i+1)),index:i})}if(links.length)$('fileLinks').innerHTML='<div class="panel"><div class="row"><b>Fichiers du trade</b><span class="tiny muted">'+links.length+' fichier(s)</span></div>'+links.map(f=>'<div class="trade-file-row"><span>'+esc(f.name)+'</span><span class="trade-file-actions"><a href="'+f.open+'" target="_blank" rel="noopener">Ouvrir</a><a href="'+f.download+'" target="_blank" rel="noopener">Télécharger</a><button type="button" data-remove-file="'+t.id+'" data-file-index="'+f.index+'">Supprimer</button></span></div>').join('')+'</div>';else $('fileLinks').innerHTML='<div class="panel"><span class="tiny muted">Aucun fichier associé à ce trade.</span></div>'});
 $('exportBtn').onclick=async()=>{const {data,error}=await sb.from('risk_changes').select('*').order('effective_at');if(error){msg('backupMsg',error.message,'err');return}const {data:movementData,error:movementError}=await sb.from('account_movements').select('*').order('movement_date');if(movementError){msg('backupMsg',movementError.message,'err');return}const payload={format:'TradeLog backup v1',exported_at:new Date().toISOString(),accounts,trades,risk_changes:data||[],account_movements:movementData||[]};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='TradeLog-backup-'+today()+'.json';a.click();URL.revokeObjectURL(url);msg('backupMsg','Sauvegarde exportée. Conserve ce fichier dans un endroit sûr.','ok')};
 $('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=='TradeLog backup v1'||!Array.isArray(data.accounts)||!Array.isArray(data.trades))throw new Error('Format de sauvegarde non reconnu.');const map={};for(const a of data.accounts){const {data:n,error}=await sb.from('trading_accounts').insert({account_name:a.name||a.account_name,broker:a.broker,currency:a.currency||'USD',initial_capital:Number(a.capital??a.initial_capital),risk_percent:Number(a.risk??a.risk_percent??1),start_date:a.start||a.start_date||today(),is_active:true}).select().single();if(error)throw error;map[a.id]=n.id}for(const h of (data.risk_changes||[])){if(!map[h.account_id])continue;const {error}=await sb.from('risk_changes').insert({account_id:map[h.account_id],effective_at:h.effective_at,initial_capital:h.initial_capital,risk_percent:h.risk_percent,note:h.note});if(error)throw error}for(const m of (data.account_movements||[])){if(!map[m.account_id])continue;const {error}=await sb.from('account_movements').insert({account_id:map[m.account_id],movement_type:m.movement_type,amount:m.amount,movement_date:m.movement_date,note:m.note||''});if(error)throw error}for(const t of data.trades){if(!map[t.account_id])continue;const row={account_id:map[t.account_id],trade_date:t.trade_date,symbol:t.symbol,side:t.side,setup:t.setup,result:t.result,gross_pnl:t.gross_pnl,commission:t.commission||0,swap:t.swap||0,other_fees:t.other_fees||0,risk_reference:t.risk_reference,plan_respected:!!t.plan_respected,risk_respected:!!t.risk_respected,setup_valid:!!t.setup_valid,emotions:t.emotions||[],psychological_biases:t.psychological_biases||[],notes:t.notes||'',screenshot_paths:[],import_source:'manual'};const {error}=await sb.from('trades').insert(row);if(error)throw error}await loadAll();msg('backupMsg','Import terminé. Les données ont été ajoutées. Les images ne sont pas réimportées automatiquement.','ok')}catch(err){msg('backupMsg','Import interrompu : '+(err.message||String(err)),'err')}finally{$('importFile').value=''}});
+
+
+// MT5 local bridge — import explicite uniquement, aucun ordre de trading.
+let mt5DealsGrouped=[];
+function mt5Headers(){return {'Authorization':'Bearer '+$('mt5Token').value.trim()};}
+async function mt5Request(path){
+ const token=$('mt5Token').value.trim();
+ if(!token)throw new Error('Colle d’abord le jeton affiché dans la fenêtre du connecteur Windows.');
+ const response=await fetch('http://127.0.0.1:8765'+path,{method:'GET',headers:mt5Headers(),cache:'no-store'});
+ const data=await response.json().catch(()=>({error:'Réponse locale illisible'}));
+ if(!response.ok)throw new Error(data.error||('Erreur HTTP '+response.status));
+ return data;
+}
+function renderMt5AccountOptions(){
+ const el=$('mt5Account');if(!el)return;const previous=el.value;
+ el.innerHTML=accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+' · '+esc(a.currency)+'</option>').join('');
+ if(accounts.some(a=>a.id===previous))el.value=previous;
+}
+async function checkMt5Connection(){
+ const status=$('mt5Status');status.textContent='Vérification…';status.className='status';
+ try{const a=await mt5Request('/status');status.textContent='MT5 connecté · '+a.server+' · '+a.currency;status.className='status ok';}
+ catch(e){status.textContent='Connexion impossible';status.className='status err';$('mt5Preview').textContent=e.message;}
+}
+function groupMt5Deals(deals){
+ const map=new Map();
+ for(const d of deals){const key=String(d.position_id||'');if(!key||key==='0')continue;
+  if(!map.has(key))map.set(key,{position_id:key,symbol:d.symbol,side:null,volume:0,profit:0,commission:0,swap:0,fees:0,deal_ids:[],last_time:0,exit_seen:false});
+  const g=map.get(key);g.deal_ids.push(String(d.ticket));g.profit+=Number(d.profit||0);g.commission+=Number(d.commission||0);g.swap+=Number(d.swap||0);g.fees+=Number(d.fee||0);
+  if(Number(d.entry)===0){g.side=Number(d.type)===0?'BUY':Number(d.type)===1?'SELL':g.side;g.volume=Math.max(g.volume,Number(d.volume||0));}
+  if(Number(d.entry)===1||Number(d.entry)===3){g.exit_seen=true;if(Number(d.time)>g.last_time)g.last_time=Number(d.time);}
+ }
+ return [...map.values()].filter(g=>g.exit_seen).map(g=>({...g,trade_date:new Date(g.last_time*1000).toISOString().slice(0,10),net:g.profit+g.commission+g.swap+g.fees}));
+}
+async function fetchMt5History(){
+ const preview=$('mt5Preview'),button=$('mt5Fetch'),accountId=$('mt5Account').value;
+ if(!accountId){preview.textContent='Ajoute ou sélectionne un compte TradeLog.';return}
+ button.disabled=true;button.textContent='Lecture…';preview.textContent='Lecture de l’historique MT5…';
+ try{
+  const result=await mt5Request('/history?days='+encodeURIComponent($('mt5Days').value));
+  const grouped=groupMt5Deals(result.deals||[]);
+  const accountTrades=trades.filter(t=>t.account_id===accountId);
+  const existing=new Set(accountTrades.map(t=>String(t.external_position_id||'')).filter(Boolean));
+  mt5DealsGrouped=grouped.filter(g=>!existing.has(g.position_id));
+  const duplicates=grouped.length-mt5DealsGrouped.length;
+  preview.innerHTML='<p><strong>'+grouped.length+'</strong> positions clôturées détectées · <strong>'+mt5DealsGrouped.length+'</strong> nouvelles · '+duplicates+' déjà présentes.</p>'+
+   (mt5DealsGrouped.length?'<div class="tablewrap"><table><thead><tr><th>Clôture</th><th>Symbole</th><th>Sens</th><th>Volume</th><th>PNL net</th><th>Position MT5</th></tr></thead><tbody>'+mt5DealsGrouped.map(g=>'<tr><td>'+formatDate(g.trade_date)+'</td><td>'+esc(g.symbol)+'</td><td>'+esc(g.side||'—')+'</td><td>'+g.volume+'</td><td>'+money(g.net)+'</td><td>'+esc(g.position_id)+'</td></tr>').join('')+'</tbody></table></div><p class="tiny muted">Les positions sont importées comme résultat « OTHER » : MT5 ne permet pas de déduire avec certitude TP, SL, BE ou CP dans tous les cas. Le PNL net est recalculé par TradeLog à partir du PNL brut, commission, swap et frais.</p><button type="button" class="btn" id="mt5ConfirmImport">Confirmer l’import des '+mt5DealsGrouped.length+' positions</button> <button type="button" class="btn light" id="mt5CancelImport">Annuler</button>':'<p class="muted">Aucune nouvelle position clôturée à importer.</p>');
+  $('mt5ConfirmImport')?.addEventListener('click',confirmMt5Import);
+  $('mt5CancelImport')?.addEventListener('click',()=>{mt5DealsGrouped=[];preview.textContent='Import annulé.';});
+ }catch(e){preview.textContent='Erreur : '+e.message;}
+ finally{button.disabled=false;button.textContent='Lire l’historique MT5';}
+}
+async function confirmMt5Import(){
+ const accountId=$('mt5Account').value,button=$('mt5ConfirmImport');
+ if(!accountId||!mt5DealsGrouped.length)return;
+ if(!confirm('Importer '+mt5DealsGrouped.length+' positions MT5 dans ce compte TradeLog ? Aucun trade existant ne sera modifié.'))return;
+ button.disabled=true;button.textContent='Importation…';
+ try{
+  const rows=mt5DealsGrouped.map(g=>({account_id:accountId,trade_date:new Date(g.last_time*1000).toISOString(),symbol:g.symbol||'XAUUSD',side:g.side||'BUY',result:'OTHER',gross_pnl:g.profit,commission:g.commission,swap:g.swap,other_fees:g.fees,risk_reference:null,plan_respected:null,risk_respected:false,setup_valid:false,emotions:[],psychological_biases:[],notes:'Import MT5 · position '+g.position_id+' · tickets '+g.deal_ids.join(', '),screenshot_paths:[],import_source:'mt5',external_position_id:g.position_id,external_deal_ids:g.deal_ids}));
+  const {error}=await sb.from('trades').insert(rows);if(error)throw error;
+  mt5DealsGrouped=[];await loadAll();$('mt5Preview').textContent='Import terminé. Les positions ont été ajoutées sans modifier les trades existants.';renderMt5AccountOptions();
+ }catch(e){button.disabled=false;button.textContent='Réessayer l’import';$('mt5Preview').textContent='Import interrompu : '+e.message;}
+}
+$('mt5Check').addEventListener('click',checkMt5Connection);
+$('mt5Fetch').addEventListener('click',fetchMt5History);
+renderMt5AccountOptions();
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 sb.auth.onAuthStateChange((event,session)=>{
