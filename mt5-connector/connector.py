@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import secrets
+import threading
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -15,6 +17,7 @@ ALLOWED_ORIGINS = {
     "http://127.0.0.1:5500",
 }
 TOKEN = secrets.token_urlsafe(32)
+MT5_LOCK = threading.RLock()
 
 
 def mt5_module():
@@ -32,31 +35,71 @@ def connect():
     return mt5
 
 
-def account_status():
-    mt5 = connect()
-    try:
-        account = mt5.account_info()
-        terminal = mt5.terminal_info()
-        if account is None:
-            raise RuntimeError(f"Cannot read MT5 account: {mt5.last_error()}")
+@contextmanager
+def selected_account(login: int | None = None, server: str | None = None):
+    """Select a saved MT5 account temporarily, verify it, then restore the prior account."""
+    with MT5_LOCK:
+        mt5 = connect()
+        original = mt5.account_info()
+        if original is None:
+            mt5.shutdown()
+            raise RuntimeError(f"Cannot read current MT5 account: {mt5.last_error()}")
+        original_login = int(original.login)
+        original_server = str(original.server)
+        changed = False
+        try:
+            if login is not None:
+                if not server:
+                    raise ValueError("Le serveur MT5 est obligatoire.")
+                if original_login != login or original_server.casefold() != server.casefold():
+                    if not mt5.login(login, server=server):
+                        raise RuntimeError(
+                            "MT5 ne peut pas ouvrir ce compte. Vérifie le numéro, le serveur "
+                            "et que le mot de passe est enregistré dans MT5. "
+                            f"Détail : {mt5.last_error()}"
+                        )
+                    changed = True
+            account = mt5.account_info()
+            if account is None:
+                raise RuntimeError(f"Lecture du compte MT5 impossible : {mt5.last_error()}")
+            if login is not None and (
+                int(account.login) != login or str(account.server).casefold() != server.casefold()
+            ):
+                raise RuntimeError("Le compte MT5 actif ne correspond pas au compte demandé. Lecture bloquée.")
+            yield mt5, account, mt5.terminal_info()
+        finally:
+            restore_error = None
+            if changed:
+                if not mt5.login(original_login, server=original_server):
+                    restore_error = f"Impossible de rétablir le compte MT5 initial : {mt5.last_error()}"
+                else:
+                    restored = mt5.account_info()
+                    if restored is None or int(restored.login) != original_login or str(restored.server).casefold() != original_server.casefold():
+                        restore_error = "Le rétablissement du compte MT5 initial n’a pas pu être confirmé."
+            mt5.shutdown()
+            if restore_error:
+                raise RuntimeError("ALERTE — " + restore_error + " Vérifie le compte affiché dans MT5.")
+
+
+def account_status(login: int | None = None, server: str | None = None):
+    with selected_account(login, server) as (mt5, account, terminal):
         return {
             "connected": True,
             "terminal_connected": bool(terminal.connected) if terminal else False,
             "trade_allowed": bool(terminal.trade_allowed) if terminal else None,
             "account_login_masked": ("*" * max(0, len(str(account.login)) - 3)) + str(account.login)[-3:],
+            "account_login": int(account.login),
             "server": str(account.server),
             "currency": str(account.currency),
             "mode": "read_only",
+            "original_account_restored": True,
         }
-    finally:
-        mt5.shutdown()
 
 
-def read_history(days: int = 90):
+def read_history(days: int = 90, login: int | None = None, server: str | None = None):
     if not 1 <= days <= 365:
         raise ValueError("days must be between 1 and 365")
-    mt5 = connect()
-    try:
+    with selected_account(login, server) as (mt5, account, terminal):
         end = datetime.now()
         start = end - timedelta(days=days)
         deals = mt5.history_deals_get(start, end)
@@ -65,27 +108,18 @@ def read_history(days: int = 90):
         rows = []
         for d in deals:
             rows.append({
-                "ticket": int(d.ticket),
-                "order": int(d.order),
-                "position_id": int(d.position_id),
-                "time": int(d.time),
-                "time_utc": datetime.fromtimestamp(int(d.time), timezone.utc).isoformat(),
-                "symbol": str(d.symbol),
-                "type": int(d.type),
-                "entry": int(d.entry),
-                "volume": float(d.volume),
-                "price": float(d.price),
-                "commission": float(d.commission),
-                "swap": float(d.swap),
-                "profit": float(d.profit),
-                "fee": float(d.fee),
-                "comment": str(d.comment),
-                "external_id": str(d.external_id),
+                "ticket": int(d.ticket), "order": int(d.order), "position_id": int(d.position_id),
+                "time": int(d.time), "time_utc": datetime.fromtimestamp(int(d.time), timezone.utc).isoformat(),
+                "symbol": str(d.symbol), "type": int(d.type), "entry": int(d.entry),
+                "volume": float(d.volume), "price": float(d.price), "commission": float(d.commission),
+                "swap": float(d.swap), "profit": float(d.profit), "fee": float(d.fee),
+                "comment": str(d.comment), "external_id": str(d.external_id),
             })
-        return {"mode": "read_only", "from": start.isoformat(), "to": end.isoformat(),
-                "count": len(rows), "deals": rows}
-    finally:
-        mt5.shutdown()
+        return {
+            "mode": "read_only", "account_login": int(account.login), "server": str(account.server),
+            "currency": str(account.currency), "original_account_restored": True,
+            "from": start.isoformat(), "to": end.isoformat(), "count": len(rows), "deals": rows,
+        }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -134,10 +168,16 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/health":
                 self.send_json(200, {"service": "TradeLog MT5 bridge", "mode": "read_only"})
             elif parsed.path == "/status":
-                self.send_json(200, account_status())
+                query = parse_qs(parsed.query)
+                login = int(query["login"][0]) if query.get("login") else None
+                server = query.get("server", [None])[0]
+                self.send_json(200, account_status(login, server))
             elif parsed.path == "/history":
-                days = int(parse_qs(parsed.query).get("days", ["90"])[0])
-                self.send_json(200, read_history(days))
+                query = parse_qs(parsed.query)
+                days = int(query.get("days", ["90"])[0])
+                login = int(query["login"][0]) if query.get("login") else None
+                server = query.get("server", [None])[0]
+                self.send_json(200, read_history(days, login, server))
             else:
                 self.send_json(404, {"error": "Not found"})
         except Exception as exc:
