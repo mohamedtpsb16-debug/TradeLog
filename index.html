@@ -452,9 +452,11 @@ tbody tr:hover td{background:#fbfaff}
   <div class="mt5-sync-fields">
    <div class="field"><label for="mt5Account">Compte TradeLog de destination</label><select id="mt5Account"></select></div>
    <div class="field"><label for="mt5Token">Jeton temporaire du connecteur Windows</label><input id="mt5Token" type="password" autocomplete="off" placeholder="Coller le jeton temporaire"></div>
+   <div class="field"><label for="mt5Login">Numéro du compte MT5</label><input id="mt5Login" inputmode="numeric" autocomplete="off" placeholder="Détecté automatiquement ou à renseigner"></div>
+   <div class="field"><label for="mt5Server">Serveur MT5 exact</label><input id="mt5Server" autocomplete="off" placeholder="Détecté automatiquement ou à renseigner"></div>
    <div class="field"><label for="mt5Days">Période de l’historique</label><select id="mt5Days"><option value="30">30 derniers jours</option><option value="90" selected>90 derniers jours</option><option value="180">180 derniers jours</option><option value="365">365 derniers jours</option></select></div>
   </div>
-  <div class="mt5-sync-actions"><button class="btn light" id="mt5Check" type="button">Vérifier la connexion</button><button class="btn" id="mt5Fetch" type="button">Lire l’historique MT5</button></div>
+  <div class="mt5-sync-actions"><button class="btn light" id="mt5Detect" type="button">Associer le compte MT5 actuellement ouvert</button><button class="btn light" id="mt5Check" type="button">Vérifier le compte sélectionné</button><button class="btn" id="mt5Fetch" type="button">Lire l’historique MT5</button></div>
   <div id="mt5Preview" class="mt5-preview"></div>
   <p class="tiny muted mt5-sync-note">Aucun rapprochement automatique par date seule. Les imports sont identifiés par position et tickets MT5. Les champs psychologiques et le respect du plan restent à compléter manuellement.</p>
  </div>
@@ -975,15 +977,48 @@ async function mt5Request(path){
  if(!response.ok)throw new Error(data.error||('Erreur HTTP '+response.status));
  return data;
 }
+function mt5Mappings(){try{return JSON.parse(localStorage.getItem('tradelog_mt5_account_mappings')||'{}')}catch(_){return {}}}
+function saveMt5Mapping(){
+ const id=$('mt5Account').value;if(!id)return;
+ const login=$('mt5Login').value.trim(),server=$('mt5Server').value.trim(),maps=mt5Mappings();
+ if(login&&server)maps[id]={login,server};else delete maps[id];
+ localStorage.setItem('tradelog_mt5_account_mappings',JSON.stringify(maps));
+}
+function loadMt5Mapping(){
+ const m=mt5Mappings()[$('mt5Account').value]||{};
+ $('mt5Login').value=m.login||'';$('mt5Server').value=m.server||'';
+}
+function mt5TargetQuery(){
+ const login=$('mt5Login').value.trim(),server=$('mt5Server').value.trim();
+ if(!login||!server)throw new Error('Associe d’abord ce compte TradeLog à un compte MT5.');
+ if(!/^\d+$/.test(login))throw new Error('Le numéro du compte MT5 doit être numérique.');
+ saveMt5Mapping();
+ return '&login='+encodeURIComponent(login)+'&server='+encodeURIComponent(server);
+}
 function renderMt5AccountOptions(){
  const el=$('mt5Account');if(!el)return;const previous=el.value;
  el.innerHTML=accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+' · '+esc(a.currency)+'</option>').join('');
  if(accounts.some(a=>a.id===previous))el.value=previous;
+ loadMt5Mapping();
 }
 async function checkMt5Connection(){
- const status=$('mt5Status');status.textContent='Vérification…';status.className='status';
- try{const a=await mt5Request('/status');status.textContent='MT5 connecté · '+a.server+' · '+a.currency;status.className='status ok';}
- catch(e){status.textContent='Connexion impossible';status.className='status err';$('mt5Preview').textContent=e.message;}
+ const status=$('mt5Status');status.textContent='Vérification du compte…';status.className='status';
+ try{
+  const a=await mt5Request('/status?'+mt5TargetQuery().slice(1));
+  status.textContent='Compte MT5 vérifié · '+a.account_login+' · '+a.server+' · '+a.currency+' · compte initial rétabli';
+  status.className='status ok';
+ }catch(e){status.textContent='Vérification impossible';status.className='status err';$('mt5Preview').textContent=e.message;}
+}
+async function detectCurrentMt5Account(){
+ const status=$('mt5Status');status.textContent='Détection du compte ouvert…';status.className='status';
+ try{
+  const a=await mt5Request('/status');
+  $('mt5Login').value=String(a.account_login);
+  $('mt5Server').value=a.server;
+  saveMt5Mapping();
+  status.textContent='Compte actuel associé · '+a.account_login+' · '+a.server;
+  status.className='status ok';
+ }catch(e){status.textContent='Détection impossible';status.className='status err';$('mt5Preview').textContent=e.message;}
 }
 function groupMt5Deals(deals){
  const map=new Map();
@@ -1015,7 +1050,7 @@ async function fetchMt5History(){
  if(!accountId){preview.textContent='Ajoute ou sélectionne un compte TradeLog.';return}
  button.disabled=true;button.textContent='Lecture…';preview.textContent='Lecture de l’historique MT5…';mt5DealsGrouped=[];
  try{
-  const result=await mt5Request('/history?days='+encodeURIComponent($('mt5Days').value));
+  const result=await mt5Request('/history?days='+encodeURIComponent($('mt5Days').value)+mt5TargetQuery());
   const grouped=groupMt5Deals(result.deals||[]),accountTrades=trades.filter(t=>t.account_id===accountId);
   const used=new Set(accountTrades.map(t=>String(t.external_position_id||'')).filter(Boolean));
   mt5DealsGrouped=grouped.filter(g=>!used.has(g.position_id)).map(g=>{const m=mt5MatchPosition(g,accountTrades.filter(t=>!t.external_position_id));return {...g,matched_trade_id:m.match?.id||null,match_candidates:m.same.map(t=>t.id),ambiguous:m.ambiguous,already:false};});
@@ -1051,6 +1086,10 @@ async function confirmMt5Import(){
 }
 $('mt5Check').addEventListener('click',checkMt5Connection);
 $('mt5Fetch').addEventListener('click',fetchMt5History);
+$('mt5Account').addEventListener('change',loadMt5Mapping);
+$('mt5Login').addEventListener('change',saveMt5Mapping);
+$('mt5Server').addEventListener('change',saveMt5Mapping);
+$('mt5Detect').addEventListener('click',detectCurrentMt5Account);
 renderMt5AccountOptions();
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
