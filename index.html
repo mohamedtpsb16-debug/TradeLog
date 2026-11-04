@@ -527,6 +527,9 @@ $('aiSend').addEventListener('click',async()=>{
 });
 
 function openNewTrade(){editingTradeId=null;switchTab('newtrade');$('tradeForm').reset();$('tDate').value=today();$('tFiles').value='';$('tradePageTitle').textContent='Enregistrer un trade';$('tGross').value='';$('tCommission').value='0';$('tSwap').value='0';$('tFees').value='0';$('tAccount').value=accounts[0]?.id||'';$('cancelTradeEdit').classList.add('hidden')}
+// Expose les fonctions utilisées par les attributs onclick du HTML.
+window.openNewTrade=openNewTrade;
+window.switchTab=switchTab;
 
 async function boot(){showApp(true);$('welcome').textContent='Bienvenue dans ton espace TradeLog';msg('syncStatus','Synchronisation cloud en cours…');try{await loadAll();msg('syncStatus','Synchronisation terminée · '+accounts.length+' compte(s), '+trades.length+' trade(s)','ok')}catch(err){msg('syncStatus','Échec de synchronisation : '+(err?.message||String(err)),'err')}}
 let riskChanges=[],fundMovements=[];
