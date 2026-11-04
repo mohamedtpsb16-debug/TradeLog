@@ -996,9 +996,12 @@ function groupMt5Deals(deals){
  return [...map.values()].filter(g=>g.exit_seen).map(g=>({...g,trade_date:new Date(g.last_time*1000).toISOString().slice(0,10),entry_price:g.entry_volume?g.entry_value/g.entry_volume:null,exit_price:g.exit_volume?g.exit_value/g.exit_volume:null,net:g.profit+g.commission+g.swap+g.fees}));
 }
 function mt5SameDay(a,b){return String(a||'').slice(0,10)===String(b||'').slice(0,10)}
+function mt5NormalizeSymbol(value){
+ return String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/XAUUSDX$/,'XAUUSD');
+}
 function mt5Close(a,b){a=Number(a);b=Number(b);return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=Math.max(.05,Math.max(Math.abs(a),Math.abs(b))*.01)}
 function mt5MatchPosition(g,candidates){
- const same=candidates.filter(t=>mt5SameDay(t.trade_date,g.trade_date)&&String(t.symbol||'').trim().toUpperCase()===String(g.symbol||'').trim().toUpperCase()&&String(t.side||'').toUpperCase()===String(g.side||'').toUpperCase());
+ const same=candidates.filter(t=>mt5SameDay(t.trade_date,g.trade_date)&&mt5NormalizeSymbol(t.symbol)===mt5NormalizeSymbol(g.symbol)&&String(t.side||'').toUpperCase()===String(g.side||'').toUpperCase());
  const strong=same.filter(t=>{
   const pnlNet=mt5Close(t.pnl_net,g.net),pnlGross=mt5Close(t.gross_pnl,g.profit);
   const volumeKnown=t.volume!==null&&t.volume!==undefined&&Number(t.volume)>0;
