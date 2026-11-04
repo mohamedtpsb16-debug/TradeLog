@@ -963,7 +963,7 @@ function groupMt5Deals(deals){
  for(const d of deals){const key=String(d.position_id||'');if(!key||key==='0')continue;
   if(!map.has(key))map.set(key,{position_id:key,symbol:d.symbol,side:null,volume:0,profit:0,commission:0,swap:0,fees:0,deal_ids:[],last_time:0,exit_seen:false});
   const g=map.get(key);g.deal_ids.push(String(d.ticket));g.profit+=Number(d.profit||0);g.commission+=Number(d.commission||0);g.swap+=Number(d.swap||0);g.fees+=Number(d.fee||0);
-  if(Number(d.entry)===0){g.side=Number(d.type)===0?'BUY':Number(d.type)===1?'SELL':g.side;g.volume=Math.max(g.volume,Number(d.volume||0));}
+  if(Number(d.entry)===0){g.side=Number(d.type)===0?'BUY':Number(d.type)===1?'SELL':g.side;g.volume+=Number(d.volume||0);}
   if(Number(d.entry)===1||Number(d.entry)===3){g.exit_seen=true;if(Number(d.time)>g.last_time)g.last_time=Number(d.time);}
  }
  return [...map.values()].filter(g=>g.exit_seen).map(g=>({...g,trade_date:new Date(g.last_time*1000).toISOString().slice(0,10),net:g.profit+g.commission+g.swap+g.fees}));
