@@ -988,41 +988,62 @@ async function checkMt5Connection(){
 function groupMt5Deals(deals){
  const map=new Map();
  for(const d of deals){const key=String(d.position_id||'');if(!key||key==='0')continue;
-  if(!map.has(key))map.set(key,{position_id:key,symbol:d.symbol,side:null,volume:0,profit:0,commission:0,swap:0,fees:0,deal_ids:[],last_time:0,exit_seen:false});
-  const g=map.get(key);g.deal_ids.push(String(d.ticket));g.profit+=Number(d.profit||0);g.commission+=Number(d.commission||0);g.swap+=Number(d.swap||0);g.fees+=Number(d.fee||0);
-  if(Number(d.entry)===0){g.side=Number(d.type)===0?'BUY':Number(d.type)===1?'SELL':g.side;g.volume+=Number(d.volume||0);}
-  if(Number(d.entry)===1||Number(d.entry)===3){g.exit_seen=true;if(Number(d.time)>g.last_time)g.last_time=Number(d.time);}
+  if(!map.has(key))map.set(key,{position_id:key,symbol:d.symbol,side:null,volume:0,profit:0,commission:0,swap:0,fees:0,deal_ids:[],last_time:0,exit_seen:false,entry_value:0,entry_volume:0,exit_value:0,exit_volume:0});
+  const g=map.get(key),vol=Number(d.volume||0),price=Number(d.price||0);g.deal_ids.push(String(d.ticket));g.profit+=Number(d.profit||0);g.commission+=Number(d.commission||0);g.swap+=Number(d.swap||0);g.fees+=Number(d.fee||0);
+  if(Number(d.entry)===0){g.side=Number(d.type)===0?'BUY':Number(d.type)===1?'SELL':g.side;g.volume+=vol;g.entry_value+=price*vol;g.entry_volume+=vol;}
+  if(Number(d.entry)===1||Number(d.entry)===3){g.exit_seen=true;g.exit_value+=price*vol;g.exit_volume+=vol;if(Number(d.time)>g.last_time)g.last_time=Number(d.time);}
  }
- return [...map.values()].filter(g=>g.exit_seen).map(g=>({...g,trade_date:new Date(g.last_time*1000).toISOString().slice(0,10),net:g.profit+g.commission+g.swap+g.fees}));
+ return [...map.values()].filter(g=>g.exit_seen).map(g=>({...g,trade_date:new Date(g.last_time*1000).toISOString().slice(0,10),entry_price:g.entry_volume?g.entry_value/g.entry_volume:null,exit_price:g.exit_volume?g.exit_value/g.exit_volume:null,net:g.profit+g.commission+g.swap+g.fees}));
+}
+function mt5SameDay(a,b){return String(a||'').slice(0,10)===String(b||'').slice(0,10)}
+function mt5Close(a,b){a=Number(a);b=Number(b);return Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<=Math.max(.05,Math.max(Math.abs(a),Math.abs(b))*.01)}
+function mt5MatchPosition(g,candidates){
+ const same=candidates.filter(t=>mt5SameDay(t.trade_date,g.trade_date)&&String(t.symbol||'').trim().toUpperCase()===String(g.symbol||'').trim().toUpperCase()&&String(t.side||'').toUpperCase()===String(g.side||'').toUpperCase());
+ const strong=same.filter(t=>{
+  const pnlNet=mt5Close(t.pnl_net,g.net),pnlGross=mt5Close(t.gross_pnl,g.profit);
+  const volumeKnown=t.volume!==null&&t.volume!==undefined&&Number(t.volume)>0;
+  const volumeOk=!volumeKnown||mt5Close(t.volume,g.volume);
+  return (pnlNet||pnlGross)&&volumeOk;
+ });
+ return {same,strong,match:strong.length===1?strong[0]:null,ambiguous:strong.length>1||(strong.length===0&&same.length>0)};
 }
 async function fetchMt5History(){
  const preview=$('mt5Preview'),button=$('mt5Fetch'),accountId=$('mt5Account').value;
  if(!accountId){preview.textContent='Ajoute ou sélectionne un compte TradeLog.';return}
- button.disabled=true;button.textContent='Lecture…';preview.textContent='Lecture de l’historique MT5…';
+ button.disabled=true;button.textContent='Lecture…';preview.textContent='Lecture de l’historique MT5…';mt5DealsGrouped=[];
  try{
   const result=await mt5Request('/history?days='+encodeURIComponent($('mt5Days').value));
-  const grouped=groupMt5Deals(result.deals||[]);
-  const accountTrades=trades.filter(t=>t.account_id===accountId);
-  const existing=new Set(accountTrades.map(t=>String(t.external_position_id||'')).filter(Boolean));
-  mt5DealsGrouped=grouped.filter(g=>!existing.has(g.position_id));
-  const duplicates=grouped.length-mt5DealsGrouped.length;
-  preview.innerHTML='<p><strong>'+grouped.length+'</strong> positions clôturées détectées · <strong>'+mt5DealsGrouped.length+'</strong> nouvelles · '+duplicates+' déjà présentes.</p>'+
-   (mt5DealsGrouped.length?'<div class="tablewrap"><table><thead><tr><th>Clôture</th><th>Symbole</th><th>Sens</th><th>Volume</th><th>PNL net</th><th>Position MT5</th></tr></thead><tbody>'+mt5DealsGrouped.map(g=>'<tr><td>'+formatDate(g.trade_date)+'</td><td>'+esc(g.symbol)+'</td><td>'+esc(g.side||'—')+'</td><td>'+g.volume+'</td><td>'+money(g.net)+'</td><td>'+esc(g.position_id)+'</td></tr>').join('')+'</tbody></table></div><p class="tiny muted">Les positions sont importées comme résultat « OTHER » : MT5 ne permet pas de déduire avec certitude TP, SL, BE ou CP dans tous les cas. Le PNL net est recalculé par TradeLog à partir du PNL brut, commission, swap et frais.</p><button type="button" class="btn" id="mt5ConfirmImport">Confirmer l’import des '+mt5DealsGrouped.length+' positions</button> <button type="button" class="btn light" id="mt5CancelImport">Annuler</button>':'<p class="muted">Aucune nouvelle position clôturée à importer.</p>');
+  const grouped=groupMt5Deals(result.deals||[]),accountTrades=trades.filter(t=>t.account_id===accountId);
+  const used=new Set(accountTrades.map(t=>String(t.external_position_id||'')).filter(Boolean));
+  mt5DealsGrouped=grouped.filter(g=>!used.has(g.position_id)).map(g=>{const m=mt5MatchPosition(g,accountTrades.filter(t=>!t.external_position_id));return {...g,matched_trade_id:m.match?.id||null,match_candidates:m.same.map(t=>t.id),ambiguous:m.ambiguous,already:false};});
+  const already=grouped.length-mt5DealsGrouped.length,matched=mt5DealsGrouped.filter(g=>g.matched_trade_id).length,ambiguous=mt5DealsGrouped.filter(g=>g.ambiguous).length,create=mt5DealsGrouped.length-matched-ambiguous;
+  const rows=mt5DealsGrouped.map(g=>{const t=accountTrades.find(x=>x.id===g.matched_trade_id);const state=t?'Fusion avec trade existant':g.ambiguous?'Correspondance incertaine':'Nouveau trade';return '<tr><td>'+formatDate(g.trade_date)+'</td><td>'+esc(g.symbol)+'</td><td>'+esc(g.side||'—')+'</td><td>'+g.volume.toFixed(2)+'</td><td>'+money(g.net)+'</td><td>'+esc(g.position_id)+'</td><td>'+esc(state)+(t?' · '+formatDate(t.trade_date):'')+'</td></tr>';}).join('');
+  preview.innerHTML='<p><strong>'+grouped.length+'</strong> positions détectées : <strong>'+matched+'</strong> correspondances fiables, <strong>'+create+'</strong> sans correspondance, <strong>'+ambiguous+'</strong> à vérifier et <strong>'+already+'</strong> déjà synchronisées.</p>'+
+   (mt5DealsGrouped.length?'<div class="tablewrap"><table><thead><tr><th>Clôture</th><th>Symbole</th><th>Sens</th><th>Volume</th><th>PNL net</th><th>Position MT5</th><th>Action prévue</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="tiny muted">Une fusion complète uniquement les données techniques MT5 (volume, prix d’entrée/sortie, PNL brut, commissions, swap, frais et identifiants). Les résultats TP/SL/BE/CP, setup, notes, captures, émotions, biais et critères de discipline du trade manuel sont conservés. Les correspondances incertaines ne seront ni fusionnées ni importées automatiquement.</p><button type="button" class="btn" id="mt5ConfirmImport" '+(ambiguous?'disabled title="Résous d’abord les correspondances incertaines."':'')+'>Confirmer '+matched+' fusion(s) et '+create+' ajout(s)</button> <button type="button" class="btn light" id="mt5CancelImport">Annuler</button>'+(ambiguous?'<p class="status err">Import bloqué : '+ambiguous+' position(s) ont une correspondance incertaine. Aucun changement ne sera effectué tant que le rapprochement n’est pas sûr.</p>':''):'<p class="muted">Aucune nouvelle position à synchroniser.</p>');
   $('mt5ConfirmImport')?.addEventListener('click',confirmMt5Import);
-  $('mt5CancelImport')?.addEventListener('click',()=>{mt5DealsGrouped=[];preview.textContent='Import annulé.';});
+  $('mt5CancelImport')?.addEventListener('click',()=>{mt5DealsGrouped=[];preview.textContent='Synchronisation annulée.';});
  }catch(e){preview.textContent='Erreur : '+e.message;}
  finally{button.disabled=false;button.textContent='Lire l’historique MT5';}
 }
 async function confirmMt5Import(){
  const accountId=$('mt5Account').value,button=$('mt5ConfirmImport');
- if(!accountId||!mt5DealsGrouped.length)return;
- if(!confirm('Importer '+mt5DealsGrouped.length+' positions MT5 dans ce compte TradeLog ? Aucun trade existant ne sera modifié.'))return;
- button.disabled=true;button.textContent='Importation…';
+ if(!accountId||!mt5DealsGrouped.length||mt5DealsGrouped.some(g=>g.ambiguous))return;
+ if(!confirm('Synchroniser '+mt5DealsGrouped.filter(g=>g.matched_trade_id).length+' trade(s) existant(s) et ajouter '+mt5DealsGrouped.filter(g=>!g.matched_trade_id).length+' nouveau(x) trade(s) ? Les champs manuels et psychologiques seront conservés.'))return;
+ button.disabled=true;button.textContent='Synchronisation…';
  try{
-  const rows=mt5DealsGrouped.map(g=>({account_id:accountId,trade_date:new Date(g.last_time*1000).toISOString(),symbol:g.symbol||'XAUUSD',side:g.side||'BUY',result:'OTHER',gross_pnl:g.profit,commission:g.commission,swap:g.swap,other_fees:g.fees,risk_reference:null,plan_respected:null,risk_respected:false,setup_valid:false,emotions:[],psychological_biases:[],notes:'Import MT5 · position '+g.position_id+' · tickets '+g.deal_ids.join(', '),screenshot_paths:[],import_source:'mt5',external_position_id:g.position_id,external_deal_ids:g.deal_ids}));
-  const {error}=await sb.from('trades').insert(rows);if(error)throw error;
-  mt5DealsGrouped=[];await loadAll();$('mt5Preview').textContent='Import terminé. Les positions ont été ajoutées sans modifier les trades existants.';renderMt5AccountOptions();
- }catch(e){button.disabled=false;button.textContent='Réessayer l’import';$('mt5Preview').textContent='Import interrompu : '+e.message;}
+  const matched=mt5DealsGrouped.filter(g=>g.matched_trade_id),fresh=mt5DealsGrouped.filter(g=>!g.matched_trade_id);
+  for(const g of matched){
+   const t=trades.find(x=>x.id===g.matched_trade_id);if(!t)throw new Error('Un trade à fusionner n’est plus présent dans le journal. Relis l’historique avant de recommencer.');
+   const payload={volume:g.volume,entry_price:g.entry_price,exit_price:g.exit_price,gross_pnl:g.profit,commission:g.commission,swap:g.swap,other_fees:g.fees,external_position_id:g.position_id,external_deal_ids:g.deal_ids};
+   const {error}=await sb.from('trades').update(payload).eq('id',t.id).eq('account_id',accountId);if(error)throw error;
+  }
+  if(fresh.length){
+   const rows=fresh.map(g=>({account_id:accountId,trade_date:new Date(g.last_time*1000).toISOString(),symbol:g.symbol||'XAUUSD',side:g.side||'BUY',setup:null,result:'OTHER',volume:g.volume,entry_price:g.entry_price,exit_price:g.exit_price,gross_pnl:g.profit,commission:g.commission,swap:g.swap,other_fees:g.fees,risk_reference:null,plan_respected:null,risk_respected:false,setup_valid:false,emotions:[],psychological_biases:[],notes:'Import MT5 · position '+g.position_id+' · tickets '+g.deal_ids.join(', '),screenshot_paths:[],import_source:'mt5',external_position_id:g.position_id,external_deal_ids:g.deal_ids}));
+   const {error}=await sb.from('trades').insert(rows);if(error)throw error;
+  }
+  const summary=matched.length+' trade(s) manuel(s) enrichi(s) et '+fresh.length+' nouveau(x) ajouté(s). Les données psychologiques et les classifications manuelles ont été conservées.';
+  mt5DealsGrouped=[];await loadAll();renderMt5AccountOptions();$('mt5Preview').textContent='Synchronisation terminée : '+summary;
+ }catch(e){button.disabled=false;button.textContent='Réessayer la synchronisation';$('mt5Preview').textContent='Synchronisation interrompue : '+e.message+'. Vérifie les trades avant de relancer pour éviter une répétition.';}
 }
 $('mt5Check').addEventListener('click',checkMt5Connection);
 $('mt5Fetch').addEventListener('click',fetchMt5History);
