@@ -7,7 +7,8 @@
 - Lit uniquement l'état du terminal et l'historique des deals.
 - N'appelle aucune fonction d'envoi/modification/suppression d'ordre (\`order_send\`, etc.).
 - N'installe aucun EA, ne crée aucun ordre et ne modifie aucun SL/TP.
-- Ne stocke pas les identifiants MT5. Le terminal utilise sa session déjà ouverte.
+- Ne stocke aucun mot de passe MT5. Le numéro de compte et le serveur associés à chaque compte TradeLog sont conservés localement dans le navigateur.
+- Peut sélectionner temporairement un autre compte déjà enregistré dans MT5, sans transmettre de mot de passe, vérifier son identité, lire son historique puis rétablir le compte MT5 qui était actif au départ.
 - Le jeton d'accès est généré à chaque lancement et affiché dans la console. Ne le partage jamais.
 
 **Important :** MT5 reste connecté au serveur du courtier. Le connecteur ne communique pas directement avec le serveur du courtier, mais lit les informations accessibles au terminal. Lecture seule ne signifie donc pas absence de connexion au compte.
@@ -22,7 +23,7 @@
 
 1. Décompresser le dossier.
 2. Double-cliquer sur \`install.bat\`.
-3. Ouvrir MT5 et vérifier que le compte est connecté.
+3. Ouvrir MT5 et vérifier que le compte est connecté. Les comptes supplémentaires pourront être ajoutés plus tard dans MT5, avec leurs identifiants enregistrés dans le terminal.
 4. Double-cliquer sur \`start.bat\`.
 5. Garder la fenêtre ouverte pendant la synchronisation.
 
