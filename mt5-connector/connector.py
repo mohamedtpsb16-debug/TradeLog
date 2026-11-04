@@ -192,5 +192,5 @@ if __name__ == "__main__":
     print(f"Listening only on http://{HOST}:{PORT}")
     print("Pairing token (keep private; enter it only in TradeLog on this PC):")
     print(TOKEN)
-    print("Keep MT5 open and logged in. Press Ctrl+C to stop.")
+    print("Keep MT5 open. Saved accounts can be selected temporarily by TradeLog. Press Ctrl+C to stop.")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
