@@ -818,7 +818,12 @@ $('accountList').addEventListener('click',async e=>{
  if(!confirm('Supprimer définitivement « '+a.name+' » et ses '+count+' trade(s), son historique de risque et ses captures ? Cette action est irréversible.'))return;
  del.disabled=true;
  try{
-  const paths=trades.filter(t=>t.account_id===id).flatMap(t=>t.screenshot_paths||[]);
+  const folder=user.id+'/'+id;
+  const {data:files,error:lsErr}=await sb.storage.from('trade-screenshots').list(folder,{limit:1000});
+  if(lsErr)throw lsErr;
+  const listed=(files||[]).filter(x=>x.name).map(x=>folder+'/'+x.name);
+  const referenced=trades.filter(t=>t.account_id===id).flatMap(t=>t.screenshot_paths||[]);
+  const paths=[...new Set([...listed,...referenced])];
   if(paths.length){const {error}=await sb.storage.from('trade-screenshots').remove(paths);if(error)throw error}
   const {error:te}=await sb.from('trades').delete().eq('account_id',id);if(te)throw te;
   const {error:re}=await sb.from('risk_changes').delete().eq('account_id',id);if(re)throw re;
@@ -888,44 +893,31 @@ $('tradeRows').addEventListener('click',async e=>{
 });
 
 
-$('accountList').addEventListener('click',async e=>{
- const del=e.target.closest('[data-delete-account]');if(!del)return;
- const id=del.dataset.deleteAccount,a=accounts.find(x=>x.id===id);if(!a)return;
- const related=trades.filter(t=>t.account_id===id);
- if(!confirm('Supprimer définitivement le compte « '+a.name+' » ainsi que ses '+related.length+' trade(s), son historique de risque et ses captures associées ? Cette opération est irréversible.'))return;
- del.disabled=true;
- try{
-  const folder=user.id+'/'+id;
-  const {data:files,error:lsErr}=await sb.storage.from('trade-screenshots').list(folder,{limit:1000});
-  if(lsErr)throw lsErr;
-  const paths=(files||[]).filter(x=>x.name).map(x=>folder+'/'+x.name);
-  if(paths.length){const {error}=await sb.storage.from('trade-screenshots').remove(paths);if(error)throw error}
-  const {error:te}=await sb.from('trades').delete().eq('account_id',id);if(te)throw te;
-  const {error:re}=await sb.from('risk_changes').delete().eq('account_id',id);if(re)throw re;
-  const {error:ae}=await sb.from('trading_accounts').delete().eq('id',id);if(ae)throw ae;
-  await loadAll();alert('Compte et données associées supprimés.');
- }catch(err){del.disabled=false;alert('Suppression interrompue : '+(err.message||String(err)));}
-});
 $('accountList').addEventListener('click',async e=>{const b=e.target.closest('[data-history]');if(!b)return;const {data,error}=await sb.from('risk_changes').select('*').eq('account_id',b.dataset.history).order('effective_at',{ascending:true});if(error){alert('Historique indisponible : '+error.message);return}const lines=(data||[]).map(x=>new Date(x.effective_at).toLocaleDateString('fr-FR')+' — capital '+money(x.initial_capital)+' — risque '+x.risk_percent+'%'+(x.note?' — '+x.note:'')).join('\n');alert(lines||'Aucun changement enregistré.')});
 
 function renderAnalytics(){
  const analyticsTrades=analyticsTradesInPeriod(trades);
- let net=0,wins=0,rrTotal=0,plan=0,risk=0,valid=0;
- const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 2':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 3':{count:0,pnl:0,wins:0,rr:0}};
+ let wins=0,rrTotal=0,rrCount=0,planYes=0,planKnown=0,riskYes=0,riskKnown=0,validYes=0,validKnown=0;
+ const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0,rr:0,rrCount:0},'SMC Setup 2':{count:0,pnl:0,wins:0,rr:0,rrCount:0},'SMC Setup 3':{count:0,pnl:0,wins:0,rr:0,rrCount:0}};
  const emotions={},biases={};
  for(const t of analyticsTrades){
-  const pnl=Number(t.pnl_net||0);net+=pnl;rrTotal+=Number(t.rr||0);
-  if(pnl>0)wins++;if(t.plan_respected)plan++;if(t.risk_respected)risk++;if(t.setup_valid)valid++;
-  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;st.rr+=Number(t.rr||0);if(pnl>0)st.wins++;}
+  const pnl=Number(t.pnl_net||0),rrValue=Number(t.rr);
+  if(pnl>0)wins++;
+  if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)&&rrValue>0){rrTotal+=rrValue;rrCount++;}
+  if(t.plan_respected!==null&&t.plan_respected!==undefined){planKnown++;if(t.plan_respected===true)planYes++;}
+  if(t.risk_respected!==null&&t.risk_respected!==undefined){riskKnown++;if(t.risk_respected===true)riskYes++;}
+  if(t.setup_valid!==null&&t.setup_valid!==undefined){validKnown++;if(t.setup_valid===true)validYes++;}
+  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;if(pnl>0)st.wins++;if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)&&rrValue>0){st.rr+=rrValue;st.rrCount++;}}
   for(const e of (t.emotions||[]))emotions[e]=(emotions[e]||0)+1;
   for(const e of (t.psychological_biases||[]))biases[e]=(biases[e]||0)+1;
  }
- const rr=analyticsTrades.length?rrTotal/analyticsTrades.length:0;
- $('analysisMetrics').innerHTML=[['Trades',analyticsTrades.length],['Win rate',analyticsTrades.length?(wins/analyticsTrades.length*100).toFixed(1)+'%':'—'],['RR moyen',analyticsTrades.length?rr.toFixed(2)+'R':'—'],['Respect du plan',analyticsTrades.length?(plan/analyticsTrades.length*100).toFixed(0)+'%':'—']].map(x=>'<div class="stat"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
+ const rr=rrCount?rrTotal/rrCount:0;
+ const pct=(yes,known)=>known?(yes/known*100).toFixed(0)+'%':'—';
+ $('analysisMetrics').innerHTML=[['Trades',analyticsTrades.length],['Win rate',analyticsTrades.length?(wins/analyticsTrades.length*100).toFixed(1)+'%':'—'],['RR moyen',rrCount?rr.toFixed(2)+'R':'—'],['Respect du plan',pct(planYes,planKnown)]].map(x=>'<div class="stat"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
  const setups=Object.keys(setupStats);
- $('setupAnalysis').innerHTML=setups.map(k=>{const a=setupStats[k],r=a.count?a.rr/a.count:0;return '<tr><td>'+k+'</td><td>'+a.count+'</td><td>'+(a.count?(a.wins/a.count*100).toFixed(1)+'%':'—')+'</td><td>'+money(a.pnl)+'</td><td>'+(a.count?r.toFixed(2)+'R':'—')+'</td></tr>'}).join('');
+ $('setupAnalysis').innerHTML=setups.map(k=>{const a=setupStats[k],r=a.rrCount?a.rr/a.rrCount:0;return '<tr><td>'+k+'</td><td>'+a.count+'</td><td>'+(a.count?(a.wins/a.count*100).toFixed(1)+'%':'—')+'</td><td>'+money(a.pnl)+'</td><td>'+(a.rrCount?r.toFixed(2)+'R':'—')+'</td></tr>'}).join('');
  const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>'<li>'+esc(x[0])+' : '+x[1]+'</li>').join('')||'<li>Pas encore de données</li>';
- $('psychAnalysis').innerHTML='<p>Respect complet du plan : <b>'+(analyticsTrades.length?(plan/analyticsTrades.length*100).toFixed(0)+'%':'—')+'</b></p><div class="form"><div><b>Émotions les plus fréquentes</b><ul>'+top(emotions)+'</ul></div><div><b>Biais observés</b><ul>'+top(biases)+'</ul></div></div><p class="tiny muted">Respect du risque : '+risk+'/'+analyticsTrades.length+' · Setup valide : '+valid+'/'+analyticsTrades.length+'</p>';
+ $('psychAnalysis').innerHTML='<p>Respect du plan parmi les trades renseignés : <b>'+pct(planYes,planKnown)+'</b> ('+planKnown+'/'+analyticsTrades.length+' renseignés)</p><div class="form"><div><b>Émotions les plus fréquentes</b><ul>'+top(emotions)+'</ul></div><div><b>Biais observés</b><ul>'+top(biases)+'</ul></div></div><p class="tiny muted">Respect du risque : '+riskYes+'/'+riskKnown+' renseignés · Setup valide : '+validYes+'/'+validKnown+' renseignés. Les valeurs inconnues ne sont pas comptées comme des échecs.</p>';
 }
 $('accountList').addEventListener('click',e=>{const b=e.target.closest('[data-risk]');if(!b)return;const a=accounts.find(x=>x.id===b.dataset.risk);if(!a)return;$('riskAccountId').value=a.id;$('rCapital').value=a.capital;$('rPercent').value=a.risk;$('rDate').value=today();$('rNote').value='';$('riskModal').classList.remove('hidden');$('riskModal').scrollIntoView({behavior:'smooth',block:'center'})});
 $('cancelRisk').onclick=()=>$('riskModal').classList.add('hidden');
