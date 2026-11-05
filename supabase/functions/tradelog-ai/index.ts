@@ -51,8 +51,9 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return new Response(JSON.stringify({ error: "Session invalide. Reconnecte-toi." }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) return new Response(JSON.stringify({ error: "Secret GEMINI_API_KEY introuvable dans Supabase." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const groqApiKey = Deno.env.get("GROQ_API_KEY");
+    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!groqApiKey && !geminiApiKey) return new Response(JSON.stringify({ error: "Aucune clé IA configurée dans Supabase." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.json();
     const message = String(body.message || "").trim();
@@ -67,46 +68,53 @@ Deno.serve(async (req) => {
       parts.push({ inline_data: { mime_type: body.image.mimeType, data: body.image.data } });
     }
 
-    // Modèles de secours et délais bornés pour éviter les expirations de passerelle.
-    const models = ["gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.8-flash"];
-    let result: any = null;
-    let lastError = "Le service Gemini est temporairement indisponible.";
-    for (const model of models) {
+    let answer = "";
+    let lastError = "Service IA temporairement indisponible.";
+    if (groqApiKey) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          signal: controller.signal,
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: SYSTEM }] },
-            contents: [{ role: "user", parts }],
-            generationConfig: { temperature: 0.25, maxOutputTokens: 1600 },
-          }),
+        const userContent: Array<Record<string, unknown>> = [{ type: "text", text: "CONTEXTE TRADELOG :\n" + context + "\n\nDEMANDE :\n" + message }];
+        if (body.image?.data && body.image?.mimeType) userContent.push({ type: "image_url", image_url: { url: `data:${body.image.mimeType};base64,${body.image.data}` } });
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          signal: controller.signal, method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
+          body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 1600 }),
         });
         const payload = await response.json().catch(() => ({}));
-        if (response.ok) {
-          result = payload;
-          break;
-        }
-        lastError = payload?.error?.message || `Gemini a répondu HTTP ${response.status}.`;
-        console.error("tradelog-ai Gemini", model, response.status, lastError.slice(0, 500));
-        if ([400, 401, 403].includes(response.status)) break;
-      } catch (fetchError) {
-        lastError = fetchError instanceof Error && fetchError.name === "AbortError"
-          ? `Délai dépassé sur ${model}.`
-          : (fetchError instanceof Error ? fetchError.message : "Erreur réseau Gemini.");
-        console.error("tradelog-ai Gemini transport", model, lastError);
-      } finally {
-        clearTimeout(timeoutId);
+        if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
+        else { lastError = payload?.error?.message || `Groq HTTP ${response.status}`; console.error("tradelog-ai Groq", response.status, lastError.slice(0, 500)); }
+      } catch (e) {
+        lastError = e instanceof Error && e.name === "AbortError" ? "Délai dépassé sur Groq." : (e instanceof Error ? e.message : "Erreur réseau Groq.");
+        console.error("tradelog-ai Groq transport", lastError);
+      } finally { clearTimeout(timeoutId); }
+    }
+    if (!answer && geminiApiKey) {
+      for (const model of ["gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.8-flash"]) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 7000);
+        try {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+            signal: controller.signal, method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
+            body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { temperature: 0.25, maxOutputTokens: 1600 } }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (response.ok) {
+            answer = payload?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n").trim() || "";
+            if (answer) break;
+          } else {
+            lastError = payload?.error?.message || `Gemini HTTP ${response.status}`;
+            console.error("tradelog-ai Gemini", model, response.status, lastError.slice(0, 500));
+            if ([400, 401, 403].includes(response.status)) break;
+          }
+        } catch (e) {
+          lastError = e instanceof Error && e.name === "AbortError" ? `Délai dépassé sur ${model}.` : (e instanceof Error ? e.message : "Erreur réseau Gemini.");
+          console.error("tradelog-ai Gemini transport", model, lastError);
+        } finally { clearTimeout(timeoutId); }
       }
     }
-    if (!result) {
-      throw new Error("Gemini n'a pas répondu après deux tentatives. " + lastError);
-    }
-    const answer = result?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("\n").trim();
-    if (!answer) throw new Error("Gemini n'a pas retourné de réponse exploitable.");
+    if (!answer) throw new Error("Aucun fournisseur IA n'a répondu. " + lastError);
     return new Response(JSON.stringify({ answer }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inattendue." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
