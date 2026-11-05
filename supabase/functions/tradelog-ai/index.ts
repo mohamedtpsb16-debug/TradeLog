@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 600, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
+          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 600, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
