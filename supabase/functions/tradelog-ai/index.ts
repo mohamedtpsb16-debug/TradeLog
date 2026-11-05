@@ -56,12 +56,24 @@ Deno.serve(async (req) => {
     if (!groqApiKey && !geminiApiKey) return new Response(JSON.stringify({ error: "Aucune clé IA configurée dans Supabase." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.json();
-    const message = String(body.message || "").trim();
     const mode = ["analyse", "chat", "web"].includes(body.mode) ? body.mode : "analyse";
-    const history = Array.isArray(body.history) ? body.history.slice(-12).filter((m: any) => ["user", "assistant"].includes(m?.role) && typeof m?.content === "string").map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 12000) })) : [];
+    const message = String(body.message || "").trim().slice(0, mode === "web" ? 4000 : 12000);
+    const rawHistory = Array.isArray(body.history) ? body.history.filter((m: any) => ["user", "assistant"].includes(m?.role) && typeof m?.content === "string") : [];
+    let history: Array<{ role: string; content: string }> = [];
+    if (mode === "web") {
+      // Keep browser-search requests comfortably below Groq's free-tier TPM ceiling.
+      let remaining = 3000;
+      for (const m of rawHistory.slice(-4).reverse()) {
+        if (remaining <= 0) break;
+        const content = String(m.content).slice(-Math.min(900, remaining));
+        if (content) { history.unshift({ role: m.role, content }); remaining -= content.length; }
+      }
+    } else {
+      history = rawHistory.slice(-12).map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 12000) }));
+    }
     if (!message) return new Response(JSON.stringify({ error: "Écris une question ou une demande d'analyse." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const context = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "";
-    const images = (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, 4);
+    const context = mode === "web" ? "" : (body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "");
+    const images = mode === "web" ? [] : (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, 4);
     const allowed = ["image/png", "image/jpeg", "image/webp"];
     let totalImageChars = 0;
     for (const image of images) {
@@ -76,7 +88,7 @@ Deno.serve(async (req) => {
     const parts: Array<Record<string, unknown>> = [{ text: "CONTEXTE TRADELOG (données fournies par l'utilisateur) :\\n" + context + "\\n\\nDEMANDE :\\n" + message }];
     for (const image of images) parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
 
-    const systemPrompt = mode === "analyse" ? SYSTEM : mode === "chat" ? `Tu es TradeLog AI, un assistant conversationnel généraliste, utile, honnête et pédagogue. Réponds naturellement en français par défaut, ou dans la langue utilisée par l’utilisateur. Tu peux discuter de tout sujet autorisé. Tu n’es pas obligé de ramener chaque question au trading. Si le contexte TradeLog contient un trade, ne l’utilise que s’il est pertinent pour la question. N’invente ni faits, ni chiffres, ni sources. Pour les informations susceptibles d’avoir changé, précise que tu n’as pas effectué de recherche Internet dans ce mode.` : `Tu es TradeLog AI en mode recherche Internet. Réponds en français par défaut. Utilise obligatoirement la recherche Web intégrée pour les demandes de recherche, actualité, prix, calendrier, événements ou faits récents. Appuie les affirmations importantes sur les sources et citations retournées par l’outil, avec dates lorsque disponibles. Distingue faits établis, incertitudes et interprétations. Ne fabrique jamais de lien, citation, chiffre ou source. Si la recherche ne donne pas de résultat fiable, dis-le clairement. Le contexte TradeLog fourni est facultatif et ne doit être utilisé que s’il aide la question.`;
+    const systemPrompt = mode === "analyse" ? SYSTEM : mode === "chat" ? `Tu es TradeLog AI, un assistant conversationnel généraliste, utile, honnête et pédagogue. Réponds naturellement en français par défaut, ou dans la langue utilisée par l’utilisateur. Tu peux discuter de tout sujet autorisé. Tu n’es pas obligé de ramener chaque question au trading. Si le contexte TradeLog contient un trade, ne l’utilise que s’il est pertinent pour la question. N’invente ni faits, ni chiffres, ni sources. Pour les informations susceptibles d’avoir changé, précise que tu n’as pas effectué de recherche Internet dans ce mode.` : `Tu es TradeLog AI, assistant de recherche Internet. Réponds en français. Utilise la recherche Web pour vérifier les faits récents. Cite les sources retournées avec leurs dates si disponibles. Distingue faits et incertitudes. N’invente aucune source. Si la recherche échoue, indique-le clairement.`;
     let answer = "";
     let lastError = "Service IA temporairement indisponible.";
     let groqError = "";
@@ -89,11 +101,11 @@ Deno.serve(async (req) => {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 900, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
+          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 600, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
-        else { groqError = payload?.error?.message || `Groq HTTP ${response.status}`; lastError = groqError; console.error("tradelog-ai Groq", response.status, lastError.slice(0, 500)); }
+        else { groqError = response.status === 429 ? "Limite gratuite de requêtes atteinte momentanément (Groq 429)." : (payload?.error?.message || `Groq HTTP ${response.status}`); lastError = groqError; console.error("tradelog-ai Groq", response.status, String(payload?.error?.message || groqError).slice(0, 500)); }
       } catch (e) {
         groqError = e instanceof Error && e.name === "AbortError" ? "Délai dépassé sur Groq." : (e instanceof Error ? e.message : "Erreur réseau Groq.");
         lastError = groqError;
