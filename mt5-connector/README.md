@@ -42,3 +42,10 @@ Le navigateur n'accepte les requêtes cross-origin que depuis les origines expli
 ## Limites actuelles
 
 Cette première brique est le pont local. Elle ne modifie pas TradeLog ni Supabase et ne réalise aucun import. L'étape suivante consiste à intégrer l'interface de prévisualisation et le rapprochement manuel des deals avec les trades saisis dans TradeLog. Aucun rapprochement ne doit reposer uniquement sur la date, puisque le journal ne conserve pas l'heure d'ouverture.
+
+
+## Dépôts et retraits
+
+La route `/history` expose également les mouvements MT5 de type `DEAL_TYPE_BALANCE` (type numérique 2). Un montant positif est proposé comme dépôt ; un montant négatif comme retrait. Les crédits, bonus, frais, commissions et corrections ne sont pas automatiquement classés comme dépôts/retraits.
+
+Dans TradeLog, ces mouvements apparaissent dans l'aperçu de synchronisation. L'utilisateur doit confirmer l'import. Le ticket MT5 est conservé dans la note du mouvement (`MT5 ticket #...`) pour éviter de réimporter le même mouvement lors d'une synchronisation ultérieure. Aucun mouvement n'est écrit avant confirmation.
