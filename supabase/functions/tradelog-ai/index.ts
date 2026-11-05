@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const message = String(body.message || "").trim();
     const mode = ["analyse", "chat", "web"].includes(body.mode) ? body.mode : "analyse";
+    const history = Array.isArray(body.history) ? body.history.slice(-12).filter((m: any) => ["user", "assistant"].includes(m?.role) && typeof m?.content === "string").map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 12000) })) : [];
     if (!message) return new Response(JSON.stringify({ error: "Écris une question ou une demande d'analyse." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const context = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "";
     const images = (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, 4);
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 900, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
+          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 900, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
         console.error("tradelog-ai Groq transport", lastError);
       } finally { clearTimeout(timeoutId); }
     }
-    if (!answer && geminiApiKey) {
+    if (!answer && geminiApiKey && mode !== "web") {
       for (const model of ["gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.8-flash"]) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 7000);
@@ -107,7 +108,7 @@ Deno.serve(async (req) => {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
             signal: controller.signal, method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
-            body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ role: "user", parts }], generationConfig: { temperature: 0.25, maxOutputTokens: 1600 } }),
+            body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [...history.map((m: { role: string; content: string }) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })), { role: "user", parts }], generationConfig: { temperature: 0.25, maxOutputTokens: 1600 } }),
           });
           const payload = await response.json().catch(() => ({}));
           if (response.ok) {
