@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const mode = ["analyse", "chat", "web"].includes(body.mode) ? body.mode : "analyse";
-    const message = String(body.message || "").trim().slice(0, mode === "web" ? 4000 : 12000);
+    const message = String(body.message || "").trim().slice(0, mode === "web" ? 4000 : 5000);
     const rawHistory = Array.isArray(body.history) ? body.history.filter((m: any) => ["user", "assistant"].includes(m?.role) && typeof m?.content === "string") : [];
     let history: Array<{ role: string; content: string }> = [];
     if (mode === "web") {
@@ -69,11 +69,16 @@ Deno.serve(async (req) => {
         if (content) { history.unshift({ role: m.role, content }); remaining -= content.length; }
       }
     } else {
-      history = rawHistory.slice(-12).map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 12000) }));
+      let remaining = mode === "analyse" ? 1800 : 4500;
+      for (const m of rawHistory.slice(mode === "analyse" ? -2 : -6).reverse()) {
+        if (remaining <= 0) break;
+        const content = String(m.content).slice(-Math.min(mode === "analyse" ? 900 : 1200, remaining));
+        if (content) { history.unshift({ role: m.role, content }); remaining -= content.length; }
+      }
     }
     if (!message) return new Response(JSON.stringify({ error: "Écris une question ou une demande d'analyse." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    const context = mode === "web" ? "" : (body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "");
-    const images = mode === "web" ? [] : (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, 4);
+    const context = mode === "web" ? "" : (body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, mode === "analyse" ? 6500 : 12000) : "");
+    const images = mode === "web" ? [] : (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, mode === "analyse" ? 2 : 4);
     const allowed = ["image/png", "image/jpeg", "image/webp"];
     let totalImageChars = 0;
     for (const image of images) {
@@ -101,7 +106,7 @@ Deno.serve(async (req) => {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 600, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
+          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 600, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 700 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
