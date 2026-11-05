@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
 
     let answer = "";
     let lastError = "Service IA temporairement indisponible.";
+    let groqError = "";
     if (groqApiKey) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
@@ -79,13 +80,14 @@ Deno.serve(async (req) => {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 1600 }),
+          body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 700 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
-        else { lastError = payload?.error?.message || `Groq HTTP ${response.status}`; console.error("tradelog-ai Groq", response.status, lastError.slice(0, 500)); }
+        else { groqError = payload?.error?.message || `Groq HTTP ${response.status}`; lastError = groqError; console.error("tradelog-ai Groq", response.status, lastError.slice(0, 500)); }
       } catch (e) {
-        lastError = e instanceof Error && e.name === "AbortError" ? "Délai dépassé sur Groq." : (e instanceof Error ? e.message : "Erreur réseau Groq.");
+        groqError = e instanceof Error && e.name === "AbortError" ? "Délai dépassé sur Groq." : (e instanceof Error ? e.message : "Erreur réseau Groq.");
+        lastError = groqError;
         console.error("tradelog-ai Groq transport", lastError);
       } finally { clearTimeout(timeoutId); }
     }
@@ -114,7 +116,7 @@ Deno.serve(async (req) => {
         } finally { clearTimeout(timeoutId); }
       }
     }
-    if (!answer) throw new Error("Aucun fournisseur IA n'a répondu. " + lastError);
+    if (!answer) throw new Error("Aucun fournisseur IA n'a répondu. " + (groqError ? "Groq : " + groqError + " | Secours Gemini : " + lastError : lastError));
     return new Response(JSON.stringify({ answer }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inattendue." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
