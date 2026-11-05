@@ -59,14 +59,20 @@ Deno.serve(async (req) => {
     const message = String(body.message || "").trim();
     if (!message) return new Response(JSON.stringify({ error: "Écris une question ou une demande d'analyse." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const context = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "";
-    const parts: Array<Record<string, unknown>> = [{ text: "CONTEXTE TRADELOG (données fournies par l'utilisateur) :\n" + context + "\n\nDEMANDE :\n" + message }];
-    if (body.image?.data && body.image?.mimeType) {
-      const allowed = ["image/png", "image/jpeg", "image/webp"];
-      if (!allowed.includes(body.image.mimeType) || String(body.image.data).length > 12000000) {
-        return new Response(JSON.stringify({ error: "Image non prise en charge ou trop volumineuse (PNG/JPEG/WebP, 8 Mo max)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const images = (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, 4);
+    const allowed = ["image/png", "image/jpeg", "image/webp"];
+    let totalImageChars = 0;
+    for (const image of images) {
+      if (!image || !allowed.includes(image.mimeType) || typeof image.data !== "string" || !image.data.length) {
+        return new Response(JSON.stringify({ error: "Une capture est invalide. Formats acceptés : PNG, JPG ou WebP." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      parts.push({ inline_data: { mime_type: body.image.mimeType, data: body.image.data } });
+      totalImageChars += image.data.length;
     }
+    if (totalImageChars > 12000000) {
+      return new Response(JSON.stringify({ error: "Les captures sont trop volumineuses. Réduis leur nombre ou leur taille (4 captures maximum)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const parts: Array<Record<string, unknown>> = [{ text: "CONTEXTE TRADELOG (données fournies par l'utilisateur) :\\n" + context + "\\n\\nDEMANDE :\\n" + message }];
+    for (const image of images) parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
 
     let answer = "";
     let lastError = "Service IA temporairement indisponible.";
@@ -76,11 +82,11 @@ Deno.serve(async (req) => {
       const timeoutId = setTimeout(() => controller.abort(), 25000);
       try {
         const userContent: Array<Record<string, unknown>> = [{ type: "text", text: "CONTEXTE TRADELOG :\n" + context + "\n\nDEMANDE :\n" + message }];
-        if (body.image?.data && body.image?.mimeType) userContent.push({ type: "image_url", image_url: { url: `data:${body.image.mimeType};base64,${body.image.data}` } });
+        for (const image of images) userContent.push({ type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.data}` } });
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify({ model: "qwen/qwen3.8-27b", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 700 }),
+          body: JSON.stringify({ model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
