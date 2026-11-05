@@ -68,12 +68,12 @@ Deno.serve(async (req) => {
     }
 
     // Modèles de secours et délais bornés pour éviter les expirations de passerelle.
-    const models = ["gemini-3.8-flash", "gemini-3.5-flash"];
+    const models = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
     let result: any = null;
     let lastError = "Le service Gemini est temporairement indisponible.";
     for (const model of models) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), model === models[0] ? 14000 : 9000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
           signal: controller.signal,
