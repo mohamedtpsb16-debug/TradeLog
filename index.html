@@ -569,7 +569,7 @@ $('aiSend').addEventListener('click',async()=>{
   if(error)throw error;
   if(!data?.answer)throw new Error(data?.error||'Aucune réponse reçue de l’assistant.');
   addAIBubble('assistant',data.answer);$('aiStatus').textContent='Analyse terminée.';$('aiImage').value='';
- }catch(err){const detail=err?.context?.error||err?.message||String(err);addAIBubble('assistant','Je n’ai pas pu terminer l’analyse.\n\n'+detail+'\n\nVérifie que la fonction tradelog-ai est déployée, que GEMINI_API_KEY est enregistré et que ta session TradeLog est active.');$('aiStatus').textContent='Erreur lors de l’analyse.'}
+ }catch(err){let detail=err?.message||String(err);try{if(err?.context&&typeof err.context.clone==='function'){const payload=await err.context.clone().json();if(payload?.error)detail=payload.error;}}catch{}addAIBubble('assistant','Je n’ai pas pu terminer l’analyse.\n\n'+detail+'\n\nSi le problème persiste, transmets ce message : il indique maintenant l’erreur réelle du service.');$('aiStatus').textContent='Erreur lors de l’analyse.'}
  finally{button.disabled=false;button.textContent='Envoyer à TradeLog AI'}
 });
 
