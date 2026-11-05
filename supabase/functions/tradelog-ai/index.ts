@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const message = String(body.message || "").trim();
+    const mode = ["analyse", "chat", "web"].includes(body.mode) ? body.mode : "analyse";
     if (!message) return new Response(JSON.stringify({ error: "Écris une question ou une demande d'analyse." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const context = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 30000) : "";
     const images = (Array.isArray(body.images) ? body.images : body.image ? [body.image] : []).slice(0, 4);
@@ -74,6 +75,7 @@ Deno.serve(async (req) => {
     const parts: Array<Record<string, unknown>> = [{ text: "CONTEXTE TRADELOG (données fournies par l'utilisateur) :\\n" + context + "\\n\\nDEMANDE :\\n" + message }];
     for (const image of images) parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
 
+    const systemPrompt = mode === "analyse" ? SYSTEM : mode === "chat" ? `Tu es TradeLog AI, un assistant conversationnel généraliste, utile, honnête et pédagogue. Réponds naturellement en français par défaut, ou dans la langue utilisée par l’utilisateur. Tu peux discuter de tout sujet autorisé. Tu n’es pas obligé de ramener chaque question au trading. Si le contexte TradeLog contient un trade, ne l’utilise que s’il est pertinent pour la question. N’invente ni faits, ni chiffres, ni sources. Pour les informations susceptibles d’avoir changé, précise que tu n’as pas effectué de recherche Internet dans ce mode.` : `Tu es TradeLog AI en mode recherche Internet. Réponds en français par défaut. Utilise obligatoirement la recherche Web intégrée pour les demandes de recherche, actualité, prix, calendrier, événements ou faits récents. Appuie les affirmations importantes sur les sources et citations retournées par l’outil, avec dates lorsque disponibles. Distingue faits établis, incertitudes et interprétations. Ne fabrique jamais de lien, citation, chiffre ou source. Si la recherche ne donne pas de résultat fiable, dis-le clairement. Le contexte TradeLog fourni est facultatif et ne doit être utilisé que s’il aide la question.`;
     let answer = "";
     let lastError = "Service IA temporairement indisponible.";
     let groqError = "";
@@ -86,7 +88,7 @@ Deno.serve(async (req) => {
         const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           signal: controller.signal, method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqApiKey}` },
-          body: JSON.stringify({ model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
+          body: JSON.stringify(mode === "web" ? { model: "openai/gpt-oss-20b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userContent }], temperature: 0.2, max_completion_tokens: 900, reasoning_effort: "low", tool_choice: "required", tools: [{ type: "browser_search" }] } : { model: images.length ? "meta-llama/llama-4-scout-17b-16e-instruct" : "qwen/qwen3.8-27b", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userContent }], temperature: 0.25, max_tokens: 900 }),
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok) answer = payload?.choices?.[0]?.message?.content?.trim() || "";
@@ -105,7 +107,7 @@ Deno.serve(async (req) => {
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
             signal: controller.signal, method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
-            body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { temperature: 0.25, maxOutputTokens: 1600 } }),
+            body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ role: "user", parts }], generationConfig: { temperature: 0.25, maxOutputTokens: 1600 } }),
           });
           const payload = await response.json().catch(() => ({}));
           if (response.ok) {
