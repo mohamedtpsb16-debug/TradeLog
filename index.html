@@ -818,7 +818,12 @@ $('accountList').addEventListener('click',async e=>{
  if(!confirm('Supprimer définitivement « '+a.name+' » et ses '+count+' trade(s), son historique de risque et ses captures ? Cette action est irréversible.'))return;
  del.disabled=true;
  try{
-  const paths=trades.filter(t=>t.account_id===id).flatMap(t=>t.screenshot_paths||[]);
+  const folder=user.id+'/'+id;
+  const {data:files,error:lsErr}=await sb.storage.from('trade-screenshots').list(folder,{limit:1000});
+  if(lsErr)throw lsErr;
+  const listed=(files||[]).filter(x=>x.name).map(x=>folder+'/'+x.name);
+  const referenced=trades.filter(t=>t.account_id===id).flatMap(t=>t.screenshot_paths||[]);
+  const paths=[...new Set([...listed,...referenced])];
   if(paths.length){const {error}=await sb.storage.from('trade-screenshots').remove(paths);if(error)throw error}
   const {error:te}=await sb.from('trades').delete().eq('account_id',id);if(te)throw te;
   const {error:re}=await sb.from('risk_changes').delete().eq('account_id',id);if(re)throw re;
@@ -888,44 +893,31 @@ $('tradeRows').addEventListener('click',async e=>{
 });
 
 
-$('accountList').addEventListener('click',async e=>{
- const del=e.target.closest('[data-delete-account]');if(!del)return;
- const id=del.dataset.deleteAccount,a=accounts.find(x=>x.id===id);if(!a)return;
- const related=trades.filter(t=>t.account_id===id);
- if(!confirm('Supprimer définitivement le compte « '+a.name+' » ainsi que ses '+related.length+' trade(s), son historique de risque et ses captures associées ? Cette opération est irréversible.'))return;
- del.disabled=true;
- try{
-  const folder=user.id+'/'+id;
-  const {data:files,error:lsErr}=await sb.storage.from('trade-screenshots').list(folder,{limit:1000});
-  if(lsErr)throw lsErr;
-  const paths=(files||[]).filter(x=>x.name).map(x=>folder+'/'+x.name);
-  if(paths.length){const {error}=await sb.storage.from('trade-screenshots').remove(paths);if(error)throw error}
-  const {error:te}=await sb.from('trades').delete().eq('account_id',id);if(te)throw te;
-  const {error:re}=await sb.from('risk_changes').delete().eq('account_id',id);if(re)throw re;
-  const {error:ae}=await sb.from('trading_accounts').delete().eq('id',id);if(ae)throw ae;
-  await loadAll();alert('Compte et données associées supprimés.');
- }catch(err){del.disabled=false;alert('Suppression interrompue : '+(err.message||String(err)));}
-});
 $('accountList').addEventListener('click',async e=>{const b=e.target.closest('[data-history]');if(!b)return;const {data,error}=await sb.from('risk_changes').select('*').eq('account_id',b.dataset.history).order('effective_at',{ascending:true});if(error){alert('Historique indisponible : '+error.message);return}const lines=(data||[]).map(x=>new Date(x.effective_at).toLocaleDateString('fr-FR')+' — capital '+money(x.initial_capital)+' — risque '+x.risk_percent+'%'+(x.note?' — '+x.note:'')).join('\n');alert(lines||'Aucun changement enregistré.')});
 
 function renderAnalytics(){
  const analyticsTrades=analyticsTradesInPeriod(trades);
- let net=0,wins=0,rrTotal=0,plan=0,risk=0,valid=0;
- const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 2':{count:0,pnl:0,wins:0,rr:0},'SMC Setup 3':{count:0,pnl:0,wins:0,rr:0}};
+ let wins=0,rrTotal=0,rrCount=0,planYes=0,planKnown=0,riskYes=0,riskKnown=0,validYes=0,validKnown=0;
+ const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0,rr:0,rrCount:0},'SMC Setup 2':{count:0,pnl:0,wins:0,rr:0,rrCount:0},'SMC Setup 3':{count:0,pnl:0,wins:0,rr:0,rrCount:0}};
  const emotions={},biases={};
  for(const t of analyticsTrades){
-  const pnl=Number(t.pnl_net||0);net+=pnl;rrTotal+=Number(t.rr||0);
-  if(pnl>0)wins++;if(t.plan_respected)plan++;if(t.risk_respected)risk++;if(t.setup_valid)valid++;
-  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;st.rr+=Number(t.rr||0);if(pnl>0)st.wins++;}
+  const pnl=Number(t.pnl_net||0),rrValue=Number(t.rr);
+  if(pnl>0)wins++;
+  if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)&&rrValue>0){rrTotal+=rrValue;rrCount++;}
+  if(t.plan_respected!==null&&t.plan_respected!==undefined){planKnown++;if(t.plan_respected===true)planYes++;}
+  if(t.risk_respected!==null&&t.risk_respected!==undefined){riskKnown++;if(t.risk_respected===true)riskYes++;}
+  if(t.setup_valid!==null&&t.setup_valid!==undefined){validKnown++;if(t.setup_valid===true)validYes++;}
+  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;if(pnl>0)st.wins++;if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)&&rrValue>0){st.rr+=rrValue;st.rrCount++;}}
   for(const e of (t.emotions||[]))emotions[e]=(emotions[e]||0)+1;
   for(const e of (t.psychological_biases||[]))biases[e]=(biases[e]||0)+1;
  }
- const rr=analyticsTrades.length?rrTotal/analyticsTrades.length:0;
- $('analysisMetrics').innerHTML=[['Trades',analyticsTrades.length],['Win rate',analyticsTrades.length?(wins/analyticsTrades.length*100).toFixed(1)+'%':'—'],['RR moyen',analyticsTrades.length?rr.toFixed(2)+'R':'—'],['Respect du plan',analyticsTrades.length?(plan/analyticsTrades.length*100).toFixed(0)+'%':'—']].map(x=>'<div class="stat"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
+ const rr=rrCount?rrTotal/rrCount:0;
+ const pct=(yes,known)=>known?(yes/known*100).toFixed(0)+'%':'—';
+ $('analysisMetrics').innerHTML=[['Trades',analyticsTrades.length],['Win rate',analyticsTrades.length?(wins/analyticsTrades.length*100).toFixed(1)+'%':'—'],['RR moyen',rrCount?rr.toFixed(2)+'R':'—'],['Respect du plan',pct(planYes,planKnown)]].map(x=>'<div class="stat"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
  const setups=Object.keys(setupStats);
- $('setupAnalysis').innerHTML=setups.map(k=>{const a=setupStats[k],r=a.count?a.rr/a.count:0;return '<tr><td>'+k+'</td><td>'+a.count+'</td><td>'+(a.count?(a.wins/a.count*100).toFixed(1)+'%':'—')+'</td><td>'+money(a.pnl)+'</td><td>'+(a.count?r.toFixed(2)+'R':'—')+'</td></tr>'}).join('');
+ $('setupAnalysis').innerHTML=setups.map(k=>{const a=setupStats[k],r=a.rrCount?a.rr/a.rrCount:0;return '<tr><td>'+k+'</td><td>'+a.count+'</td><td>'+(a.count?(a.wins/a.count*100).toFixed(1)+'%':'—')+'</td><td>'+money(a.pnl)+'</td><td>'+(a.rrCount?r.toFixed(2)+'R':'—')+'</td></tr>'}).join('');
  const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>'<li>'+esc(x[0])+' : '+x[1]+'</li>').join('')||'<li>Pas encore de données</li>';
- $('psychAnalysis').innerHTML='<p>Respect complet du plan : <b>'+(analyticsTrades.length?(plan/analyticsTrades.length*100).toFixed(0)+'%':'—')+'</b></p><div class="form"><div><b>Émotions les plus fréquentes</b><ul>'+top(emotions)+'</ul></div><div><b>Biais observés</b><ul>'+top(biases)+'</ul></div></div><p class="tiny muted">Respect du risque : '+risk+'/'+analyticsTrades.length+' · Setup valide : '+valid+'/'+analyticsTrades.length+'</p>';
+ $('psychAnalysis').innerHTML='<p>Respect du plan parmi les trades renseignés : <b>'+pct(planYes,planKnown)+'</b> ('+planKnown+'/'+analyticsTrades.length+' renseignés)</p><div class="form"><div><b>Émotions les plus fréquentes</b><ul>'+top(emotions)+'</ul></div><div><b>Biais observés</b><ul>'+top(biases)+'</ul></div></div><p class="tiny muted">Respect du risque : '+riskYes+'/'+riskKnown+' renseignés · Setup valide : '+validYes+'/'+validKnown+' renseignés. Les valeurs inconnues ne sont pas comptées comme des échecs.</p>';
 }
 $('accountList').addEventListener('click',e=>{const b=e.target.closest('[data-risk]');if(!b)return;const a=accounts.find(x=>x.id===b.dataset.risk);if(!a)return;$('riskAccountId').value=a.id;$('rCapital').value=a.capital;$('rPercent').value=a.risk;$('rDate').value=today();$('rNote').value='';$('riskModal').classList.remove('hidden');$('riskModal').scrollIntoView({behavior:'smooth',block:'center'})});
 $('cancelRisk').onclick=()=>$('riskModal').classList.add('hidden');
@@ -968,7 +960,7 @@ document.addEventListener('click',async e=>{
  }
  const cp=e.target.closest('[data-mark-cp]');if(cp){const t=trades.find(x=>x.id===cp.dataset.markCp);if(!t)return;if(!confirm('Classer ce trade en CP ? (SL déplacé à +1R minimum)'))return;cp.disabled=true;const {error}=await sb.from('trades').update({result:'PARTIAL'}).eq('id',t.id);if(error){cp.disabled=false;alert('Mise à jour impossible : '+error.message);return}await loadAll();return}const b=e.target.closest('[data-files]');if(!b)return;const t=trades.find(x=>x.id===b.dataset.files);if(!t)return;const paths=t.screenshot_paths||[];const links=[];for(let i=0;i<paths.length;i++){const path=paths[i],filename=(path.split('/').pop()||('capture-'+(i+1))).replace(/^\\d+_[a-f0-9-]+_/i,'');const {data,error}=await sb.storage.from('trade-screenshots').createSignedUrl(path,300);if(error){alert('Impossible de générer le lien d’une pièce jointe : '+error.message);return}const {data:downloadData,error:downloadError}=await sb.storage.from('trade-screenshots').createSignedUrl(path,300,{download:filename||('capture-'+(i+1))});if(downloadError){alert('Impossible de préparer le téléchargement : '+downloadError.message);return}links.push({open:data.signedUrl,download:downloadData.signedUrl,name:filename||('Capture '+(i+1)),index:i})}if(links.length)$('fileLinks').innerHTML='<div class="panel"><div class="row"><b>Fichiers du trade</b><span class="tiny muted">'+links.length+' fichier(s)</span></div>'+links.map(f=>'<div class="trade-file-row"><span>'+esc(f.name)+'</span><span class="trade-file-actions"><a href="'+f.open+'" target="_blank" rel="noopener">Ouvrir</a><a href="'+f.download+'" target="_blank" rel="noopener">Télécharger</a><button type="button" data-remove-file="'+t.id+'" data-file-index="'+f.index+'">Supprimer</button></span></div>').join('')+'</div>';else $('fileLinks').innerHTML='<div class="panel"><span class="tiny muted">Aucun fichier associé à ce trade.</span></div>'});
 $('exportBtn').onclick=async()=>{const {data,error}=await sb.from('risk_changes').select('*').order('effective_at');if(error){msg('backupMsg',error.message,'err');return}const {data:movementData,error:movementError}=await sb.from('account_movements').select('*').order('movement_date');if(movementError){msg('backupMsg',movementError.message,'err');return}const payload={format:'TradeLog backup v1',exported_at:new Date().toISOString(),accounts,trades,risk_changes:data||[],account_movements:movementData||[]};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='TradeLog-backup-'+today()+'.json';a.click();URL.revokeObjectURL(url);msg('backupMsg','Sauvegarde exportée. Conserve ce fichier dans un endroit sûr.','ok')};
-$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=='TradeLog backup v1'||!Array.isArray(data.accounts)||!Array.isArray(data.trades))throw new Error('Format de sauvegarde non reconnu.');const map={};for(const a of data.accounts){const {data:n,error}=await sb.from('trading_accounts').insert({account_name:a.name||a.account_name,broker:a.broker,currency:a.currency||'USD',initial_capital:Number(a.capital??a.initial_capital),risk_percent:Number(a.risk??a.risk_percent??1),start_date:a.start||a.start_date||today(),is_active:true}).select().single();if(error)throw error;map[a.id]=n.id}for(const h of (data.risk_changes||[])){if(!map[h.account_id])continue;const {error}=await sb.from('risk_changes').insert({account_id:map[h.account_id],effective_at:h.effective_at,initial_capital:h.initial_capital,risk_percent:h.risk_percent,note:h.note});if(error)throw error}for(const m of (data.account_movements||[])){if(!map[m.account_id])continue;const {error}=await sb.from('account_movements').insert({account_id:map[m.account_id],movement_type:m.movement_type,amount:m.amount,movement_date:m.movement_date,note:m.note||''});if(error)throw error}for(const t of data.trades){if(!map[t.account_id])continue;const row={account_id:map[t.account_id],trade_date:t.trade_date,symbol:t.symbol,side:t.side,setup:t.setup,result:t.result,gross_pnl:t.gross_pnl,commission:t.commission||0,swap:t.swap||0,other_fees:t.other_fees||0,risk_reference:t.risk_reference,plan_respected:!!t.plan_respected,risk_respected:!!t.risk_respected,setup_valid:!!t.setup_valid,emotions:t.emotions||[],psychological_biases:t.psychological_biases||[],notes:t.notes||'',screenshot_paths:[],import_source:'manual'};const {error}=await sb.from('trades').insert(row);if(error)throw error}await loadAll();msg('backupMsg','Import terminé. Les données ont été ajoutées. Les images ne sont pas réimportées automatiquement.','ok')}catch(err){msg('backupMsg','Import interrompu : '+(err.message||String(err)),'err')}finally{$('importFile').value=''}});
+$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.format!=='TradeLog backup v1'||!Array.isArray(data.accounts)||!Array.isArray(data.trades))throw new Error('Format de sauvegarde non reconnu.');const map={};for(const a of data.accounts){const {data:n,error}=await sb.from('trading_accounts').insert({account_name:a.name||a.account_name,broker:a.broker,currency:a.currency||'USD',initial_capital:Number(a.capital??a.initial_capital),risk_percent:Number(a.risk??a.risk_percent??1),start_date:a.start||a.start_date||today(),is_active:true}).select().single();if(error)throw error;map[a.id]=n.id}for(const h of (data.risk_changes||[])){if(!map[h.account_id])continue;const {error}=await sb.from('risk_changes').insert({account_id:map[h.account_id],effective_at:h.effective_at,initial_capital:h.initial_capital,risk_percent:h.risk_percent,note:h.note});if(error)throw error}for(const m of (data.account_movements||[])){if(!map[m.account_id])continue;const {error}=await sb.from('account_movements').insert({account_id:map[m.account_id],movement_type:m.movement_type,amount:m.amount,movement_date:m.movement_date,note:m.note||''});if(error)throw error}for(const t of data.trades){if(!map[t.account_id])continue;const row={account_id:map[t.account_id],trade_date:t.trade_date,symbol:t.symbol,side:t.side,setup:t.setup,result:t.result,gross_pnl:t.gross_pnl,commission:t.commission??0,swap:t.swap??0,other_fees:t.other_fees??0,risk_reference:t.risk_reference??null,volume:t.volume??null,entry_price:t.entry_price??null,exit_price:t.exit_price??null,external_position_id:t.external_position_id??null,external_deal_ids:Array.isArray(t.external_deal_ids)?t.external_deal_ids:[],plan_respected:typeof t.plan_respected==='boolean'?t.plan_respected:null,risk_respected:typeof t.risk_respected==='boolean'?t.risk_respected:null,setup_valid:typeof t.setup_valid==='boolean'?t.setup_valid:null,emotions:t.emotions||[],psychological_biases:t.psychological_biases||[],notes:t.notes||'',screenshot_paths:Array.isArray(t.screenshot_paths)?t.screenshot_paths:[],import_source:t.import_source||'manual'};const {error}=await sb.from('trades').insert(row);if(error)throw error}await loadAll();msg('backupMsg','Import terminé. Les données et références de captures ont été restaurées. Le fichier JSON ne contient pas les fichiers images eux-mêmes : ils doivent toujours exister dans le stockage d’origine.','ok')}catch(err){msg('backupMsg','Import interrompu : '+(err.message||String(err)),'err')}finally{$('importFile').value=''}});
 
 
 // MT5 local bridge — import explicite uniquement, aucun ordre de trading.
