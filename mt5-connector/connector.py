@@ -106,19 +106,38 @@ def read_history(days: int = 90, login: int | None = None, server: str | None = 
         if deals is None:
             raise RuntimeError(f"MT5 history retrieval failed: {mt5.last_error()}")
         rows = []
+        movements = []
         for d in deals:
-            rows.append({
+            deal_type = int(d.type)
+            row = {
                 "ticket": int(d.ticket), "order": int(d.order), "position_id": int(d.position_id),
                 "time": int(d.time), "time_utc": datetime.fromtimestamp(int(d.time), timezone.utc).isoformat(),
-                "symbol": str(d.symbol), "type": int(d.type), "entry": int(d.entry),
+                "symbol": str(d.symbol), "type": deal_type, "entry": int(d.entry),
                 "volume": float(d.volume), "price": float(d.price), "commission": float(d.commission),
                 "swap": float(d.swap), "profit": float(d.profit), "fee": float(d.fee),
                 "comment": str(d.comment), "external_id": str(d.external_id),
-            })
+            }
+            rows.append(row)
+            # MT5 DEAL_TYPE_BALANCE (2) represents cash balance operations.
+            # Positive amounts are deposits; negative amounts are withdrawals.
+            # Credits, bonuses, charges and corrections are deliberately not
+            # auto-classified as deposits/withdrawals.
+            if deal_type == 2 and float(d.profit) != 0:
+                amount = abs(float(d.profit))
+                movements.append({
+                    "ticket": int(d.ticket),
+                    "movement_type": "deposit" if float(d.profit) > 0 else "withdrawal",
+                    "amount": amount,
+                    "time": int(d.time),
+                    "movement_date": datetime.fromtimestamp(int(d.time), timezone.utc).date().isoformat(),
+                    "comment": str(d.comment),
+                    "currency": str(account.currency),
+                })
         return {
             "mode": "read_only", "account_login": int(account.login), "server": str(account.server),
             "currency": str(account.currency), "original_account_restored": True,
             "from": start.isoformat(), "to": end.isoformat(), "count": len(rows), "deals": rows,
+            "movement_count": len(movements), "movements": movements,
         }
 
 
