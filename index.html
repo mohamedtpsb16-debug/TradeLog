@@ -1098,7 +1098,7 @@ async function confirmMt5Import(){
   }
   let movementImported=0;
   for(const m of mt5MovementsPending){
-   const ticket=String(m.ticket),already=fundMovements.some(x=>x.account_id===accountId&&String(x.note||'').includes('MT5 ticket #'+ticket));
+   const ticket=String(m.ticket),already=fundMovements.some(x=>{const match=String(x.note||'').match(/MT5 ticket #([0-9]+)/);return x.account_id===accountId&&match&&match[1]===ticket;});
    if(already)continue;
    const note='Import MT5 · MT5 ticket #'+ticket+(m.comment?' · '+m.comment:'');
    const {error}=await sb.from('account_movements').insert({account_id:accountId,movement_type:m.movement_type,amount:m.amount,movement_date:m.movement_date,note});
