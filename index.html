@@ -352,7 +352,7 @@ tbody tr:hover td{background:#fbfaff}
 #dashboard>.section-title{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
 #dashboard>.section-title>.row{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:min(100%,320px)}
 #dashboard #customPeriod{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
-#dashboard .metric-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;width:100%;min-width:0}
+#dashboard .metric-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;width:100%;min-width:0}
 #dashboard .metric-card{min-width:0}
 #dashboard .metric-card strong{font-size:clamp(18px,1.65vw,25px);overflow-wrap:anywhere}
 #dashboard .chart-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);align-items:stretch;width:100%;min-width:0}
@@ -449,6 +449,9 @@ tbody tr:hover td{background:#fbfaff}
 #accountList .account-action-buttons{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 #accountList .account-action-buttons .btn{padding:6px 9px;font-size:11px;min-height:30px}
 
+
+.metric-rr-total .metric-icon{background:#eeeaff;color:#643bee}
+@media(max-width:720px){#dashboard .metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
@@ -750,13 +753,18 @@ function renderDashboard(){
  const selected=$('dashAccount')?.value||'all',ts=tradesInPeriod(trades).filter(t=>selected==='all'||t.account_id===selected);
  const selectedAccounts=selected==='all'?accounts:accounts.filter(a=>a.id===selected);
  const selectedCurrency=selectedAccounts[0]?.currency||'USD';
- let net=0,wins=0,rrTotal=0;
+ let net=0,wins=0,rrTotal=0,rrCount=0;
  const setupStats={'SMC Setup 1':{count:0,pnl:0,wins:0},'SMC Setup 2':{count:0,pnl:0,wins:0},'SMC Setup 3':{count:0,pnl:0,wins:0}};
- for(const t of ts){const pnl=Number(t.pnl_net||0);net+=pnl;rrTotal+=Number(t.rr||0);if(pnl>0)wins++;const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;if(pnl>0)st.wins++;}}
- const rr=ts.length?rrTotal/ts.length:0;
+ for(const t of ts){
+  const pnl=Number(t.pnl_net||0),rValue=t.rr===null||t.rr===undefined||t.rr===''?null:Number(t.rr);
+  net+=pnl;if(pnl>0)wins++;
+  if(rValue!==null&&Number.isFinite(rValue)){rrTotal+=rValue;rrCount++;}
+  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;if(pnl>0)st.wins++;}
+ }
+ const rr=rrCount?rrTotal/rrCount:0;
  const capital=selectedAccounts.length&&selectedAccounts.every(a=>a.currency===selectedCurrency)?selectedAccounts.reduce((v,a)=>v+Number(a.capital||0),0):0;
  const pnlPct=capital>0?net/capital*100:null,pctLabel=pnlPct===null?'—':(pnlPct>0?'+':'')+pnlPct.toFixed(2)+'%';
- $('metrics').innerHTML=[['▤','Trades',ts.length,'metric-trades'],[(net>0?'↗':net<0?'↘':'→'),'PNL net',money(net)+' '+selectedCurrency,'metric-pnl'+(net<0?' metric-pnl-negative':net===0?' metric-pnl-neutral':'')],['％','PNL (%)',pctLabel,'metric-pnl-percent'],['◎','Win rate',ts.length?(wins/ts.length*100).toFixed(1)+'%':'—','metric-win'],['⚖','RR moyen',ts.length?rr.toFixed(2)+'R':'—','metric-rr']].map(x=>'<div class="stat metric-card '+x[3]+'"><div class="metric-head"><span class="metric-icon">'+x[0]+'</span><small>'+x[1]+'</small></div><strong>'+x[2]+'</strong><span class="metric-caption">'+(x[1]==='PNL (%)'?(capital>0?'Par rapport au capital initial':'Capital indisponible ou devises différentes'):'Sur la période sélectionnée')+'</span></div>').join('');
+ $('metrics').innerHTML=[['▤','Trades',ts.length,'metric-trades'],[(net>0?'↗':net<0?'↘':'→'),'PNL net',money(net)+' '+selectedCurrency,'metric-pnl'+(net<0?' metric-pnl-negative':net===0?' metric-pnl-neutral':'')],['％','PNL (%)',pctLabel,'metric-pnl-percent'],['◎','Win rate',ts.length?(wins/ts.length*100).toFixed(1)+'%':'—','metric-win'],['Σ','RR cumulé',rrCount?(rrTotal>0?'+':'')+rrTotal.toFixed(2)+'R':'—','metric-rr-total'],['⚖','RR moyen',rrCount?rr.toFixed(2)+'R':'—','metric-rr']].map(x=>'<div class="stat metric-card '+x[3]+'"><div class="metric-head"><span class="metric-icon">'+x[0]+'</span><small>'+x[1]+'</small></div><strong>'+x[2]+'</strong><span class="metric-caption">'+(x[1]==='PNL (%)'?(capital>0?'Par rapport au capital initial':'Capital indisponible ou devises différentes'):'Sur la période sélectionnée')+'</span></div>').join('');
  $('recent').innerHTML=ts.length?'<div class="tablewrap"><table><thead><tr><th>Date</th><th>Compte</th><th>Setup</th><th>Résultat</th><th>PNL net</th><th>PNL (%)</th><th>R</th></tr></thead><tbody>'+ts.slice(0,5).map(t=>{const a=accounts.find(x=>x.id===t.account_id),pct=Number(a?.capital)>0?Number(t.pnl_net||0)/Number(a.capital)*100:null;return '<tr><td>'+formatDate(t.trade_date)+'</td><td>'+esc(a?.name||'')+'</td><td>'+esc(t.setup||'')+'</td><td>'+esc(t.result==='PARTIAL'?'CP':t.result)+'</td><td class="'+(Number(t.pnl_net)>=0?'good':'bad')+'">'+money(t.pnl_net)+'</td><td class="'+(pct===null?'':pct>=0?'good':'bad')+'">'+(pct===null?'—':(pct>0?'+':'')+pct.toFixed(2)+'%')+'</td><td>'+Number(t.rr||0).toFixed(2)+'R</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">Ajoute ton premier trade pour voir tes statistiques.</div>';
  const setups=Object.keys(setupStats);
  $('dashboardSetups').innerHTML=setups.map(k=>{const a=setupStats[k];return '<div class="row" style="padding:9px 0;border-bottom:1px solid #e5e9f0"><b>'+k+'</b><span>'+a.count+' trade(s)</span><span>'+ (a.count?(a.wins/a.count*100).toFixed(0)+'% gagnants':'—')+'</span><b>'+money(a.pnl)+' $</b></div>'}).join('');
@@ -939,11 +947,11 @@ function renderAnalytics(){
  for(const t of analyticsTrades){
   const pnl=Number(t.pnl_net||0),rrValue=Number(t.rr);
   if(pnl>0)wins++;
-  if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)&&rrValue>0){rrTotal+=rrValue;rrCount++;}
+  if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)){rrTotal+=rrValue;rrCount++;}
   if(t.plan_respected!==null&&t.plan_respected!==undefined){planKnown++;if(t.plan_respected===true)planYes++;}
   if(t.risk_respected!==null&&t.risk_respected!==undefined){riskKnown++;if(t.risk_respected===true)riskYes++;}
   if(t.setup_valid!==null&&t.setup_valid!==undefined){validKnown++;if(t.setup_valid===true)validYes++;}
-  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;if(pnl>0)st.wins++;if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)&&rrValue>0){st.rr+=rrValue;st.rrCount++;}}
+  const st=setupStats[t.setup];if(st){st.count++;st.pnl+=pnl;if(pnl>0)st.wins++;if(t.rr!==null&&t.rr!==undefined&&t.rr!==''&&Number.isFinite(rrValue)){st.rr+=rrValue;st.rrCount++;}}
   for(const e of (t.emotions||[]))emotions[e]=(emotions[e]||0)+1;
   for(const e of (t.psychological_biases||[]))biases[e]=(biases[e]||0)+1;
  }
