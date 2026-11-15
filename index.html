@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#1a2233"><meta name="apple-mobile-web-app-capable" content="yes"><title>TradeLog — Journal de trading</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><meta name="apple-mobile-web-app-title" content="TradeLog"><style>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f7f6fb"><meta name="apple-mobile-web-app-capable" content="yes"><title>TradeLog — Journal de trading</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><meta name="apple-mobile-web-app-title" content="TradeLog"><style>
 :root{--navy:#101b31;--gold:#d8b45a;--bg:#f3f5f8;--ink:#182338;--muted:#718096;--line:#e5e9f0;--green:#16845b;--red:#c44c52}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.top{background:linear-gradient(120deg,#101b31,#203455);color:white;padding:22px max(16px,calc((100% - 1100px)/2))}.brand{font-weight:900;font-size:23px}.brand span{color:var(--gold)}.sub{color:#c4cede;font-size:12px}.wrap{max-width:1100px;margin:auto;padding:18px 14px 50px}.panel,.stat{background:white;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.stat small{color:var(--muted)}.stat strong{display:block;font-size:24px;margin-top:5px}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;justify-content:space-between}.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:14px}.tabs button,.btn{border:0;border-radius:9px;padding:10px 13px;background:var(--navy);color:white;font-weight:700;cursor:pointer}.tabs button{background:#e8edf4;color:#34445b;white-space:nowrap}.tabs button.active{background:var(--navy);color:white}.btn.gold{background:var(--gold);color:#1b2432}.btn.light{background:#edf1f6;color:#34445b}.btn.red{background:#fff0f0;color:var(--red)}input,select,textarea{width:100%;padding:11px;border:1px solid #dce2ea;border-radius:9px;background:white;color:var(--ink);font:inherit}label{display:block;font-size:12px;font-weight:700;color:#586579;margin-bottom:5px}.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field.full{grid-column:1/-1}.hidden{display:none!important}.muted{color:var(--muted)}.tiny{font-size:12px}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:620px}td,th{text-align:left;padding:10px;border-bottom:1px solid var(--line);font-size:13px}th{font-size:11px;color:var(--muted)}.good{color:var(--green)}.bad{color:var(--red)}.checks{display:grid;gap:8px}.btn{display:inline-block}.panel h2{margin-top:0}.analysisrow{display:grid;grid-template-columns:150px 1fr 80px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.bar{height:9px;background:#e9edf3;border-radius:20px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--gold)}.checks label{display:flex;gap:8px;align-items:center;font-weight:500}.note{background:#fff9e9;border:1px solid #f1e2b8;padding:10px;border-radius:9px;font-size:12px;margin-bottom:12px}.status{font-size:12px;color:var(--muted)}.status.ok{color:var(--green)}.status.err{color:var(--red)}.auth{max-width:440px;margin:30px auto}.auth h2{margin-top:0}.foot{text-align:center;color:var(--muted);font-size:11px;margin-top:25px}@media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.form{grid-template-columns:1fr}.field.full{grid-column:auto}.top{padding:18px 15px}.stat strong{font-size:20px}}
 
 
@@ -457,8 +457,8 @@ tbody tr:hover td{background:#fbfaff}
 select.quick{padding:4px 6px;border-radius:8px;border:1px solid #d8b45a;background:#fffaf0;font-size:.8rem;max-width:130px}
 .pro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}.pro-grid .stat small{display:block}.wd-table td,.wd-table th{text-align:center}
 </style>
-<style id="theme-encre-or">
-/* ===== Thème « Encre & Or » — proposition 2026-11 ===== */
+<style id="theme-lavande">
+/* ===== Thème « Lavande douce » (base) — proposition 2026-11 ===== */
 :root {
   --bg: #f2f3f6;
   --card: #ffffff;
@@ -817,6 +817,35 @@ tbody tr:hover td { background: #fafbfc; }
 .pro-grid .stat strong { font-size: 20px; letter-spacing: -0.3px; }
 .pro-grid .stat strong small { font-size: 12px; }
 .pg a { color: #8f6c22; text-decoration: none; }
+
+/* ===== Couleurs « Lavande douce » ===== */
+:root{--bg:#f7f6fb;--card:#fff;--ink:#221d3a;--ink-2:#221d3a;--muted:#726c8a;--faint:#726c8a;--line:#e8e5f2;--line-soft:#f1eff8;--gold:#7a63e6;--gold-soft:#efebfd;}
+body,body:not(.app-authenticated){background:#f7f6fb}
+.panel,.stat,.chart-box,.account-card,.tablewrap,td,input,select,textarea,.icon-button{background-color:#fff!important;color:#221d3a;border-color:#e8e5f2!important}
+th,thead th{background:#f1eff8!important;color:#726c8a!important}
+td{color:#221d3a!important} tbody tr:hover td{background:#f1eff8!important}
+.app-topbar{background:#f7f6fbee;border-color:#e8e5f2}
+.sidebar{background:#ffffff;border-right:1px solid #ebe8f4}
+.sidebar-brand strong{color:#221d3a} .sidebar-brand small,.sidebar-footer small{color:#8d87a3}
+.sidebar-logo{border-color:#7a63e6;color:#7a63e6}
+.sidebar-nav button{color:#5a5475} .sidebar-nav button:hover{background:#f4f2fb;color:#221d3a}
+.sidebar-nav button.active{background:#efebfd;color:#5b45c9} .sidebar-nav button.active::before{background:#7a63e6}
+.sidebar-nav button.active .nav-icon{color:#5b45c9}
+.sidebar-footer{border-color:#ebe8f4;background:#f4f2fb} .profile-label b{color:#221d3a}
+.profile-avatar{background:#efebfd;color:#5b45c9}
+.sidebar-logout{border-color:#ebe8f4!important;color:#5a5475!important}
+.btn,.btn.gold,.btn.primary-action,.trade-pagination .btn{background:#6d57d8;color:#fff}
+.btn.light{background:#fff;color:#221d3a;border-color:#e8e5f2}
+.topbar-actions .btn.primary-action::before{color:#fff}
+.metric-card .metric-icon{background:#efebfd!important;color:#5b45c9!important}
+.metric-card strong,.stat strong,h2,h3,.section-title h2,.topbar-left #welcome,.donut-center{color:#221d3a!important}
+.metric-pnl strong{color:var(--green)!important} .metric-pnl-negative strong{color:var(--red)!important}
+.auth-brand .brand{color:#221d3a} .auth-brand .brand span{color:#7a63e6} .auth-brand .sub{color:#726c8a}
+body:not(.app-authenticated){background:#f1eefb}
+.panel.auth{box-shadow:0 20px 50px rgba(0,0,0,.08)}
+.donut::after,.donut:after{background:#fff!important}
+.pill-todo{background:#f6efdf;color:#8f6c22}
+.stat strong.good,.metric-card strong.good,td.good{color:var(--green)!important}.stat strong.bad,.metric-card strong.bad,td.bad{color:var(--red)!important}
 </style></head><body>
 <header class="top auth-brand"><div class="row"><div><div class="brand">TRADE<span>LOG</span></div><div class="sub">Ton journal de trading — clair, discipliné, mesurable</div></div></div></header>
 <main class="wrap">
