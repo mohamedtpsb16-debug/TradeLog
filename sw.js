@@ -1,4 +1,4 @@
-const CACHE='tradelog-static-v26';
+const CACHE='tradelog-static-v27';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./apple-touch-icon.png'];
 
 self.addEventListener('install',event=>{
